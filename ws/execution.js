@@ -1,18 +1,42 @@
-const WebSocket = require('ws');
-const crypto = require('crypto');
 require('dotenv').config();
 
+const WebSocket = require('ws');
+const crypto = require('crypto');
+
 let ws;
+let reconnectDelay = 2000;
 
 function connectTrade(){
 
   ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
 
-  ws.on('open', ()=> login());
+  ws.on('open', ()=>{
+    console.log('WS OPEN');
+    login();
+  });
+
+  ws.on('message', (msg)=>{
+    const data = JSON.parse(msg.toString());
+    console.log('WS:', data);
+
+    if(data.event === 'login'){
+      if(data.code === 0){
+        console.log('LOGIN SUCCESS FROM SERVER ✅');
+      }else{
+        console.log('LOGIN FAILED ❌', data);
+      }
+    }
+  });
+
+  ws.on('error', (err)=>{
+    console.log('WS ERROR:', err.message);
+  });
 
   ws.on('close', ()=>{
-    console.log('TRADE RECONNECT...');
-    setTimeout(connectTrade,2000);
+    console.log('RECONNECT IN', reconnectDelay);
+
+    setTimeout(connectTrade, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
   });
 }
 
@@ -35,7 +59,7 @@ function login(){
     }]
   }));
 
-  console.log('LOGIN OK');
+  console.log('LOGIN SENT');
 }
 
 function sendOrder(signal){
