@@ -1,103 +1,73 @@
 const WebSocket = require('ws');
 
-let ws;
-let pingInterval;
+function connectMarket(state) {
+  const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
 
-function connectMarket(state){
-
-  ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
-
-  ws.on('open', ()=>{
+  ws.on('open', () => {
     console.log('📡 MARKET CONNECT');
 
-    // 🔥 FIX instType + channel
+    // Subscribe candle M1 + M5
     ws.send(JSON.stringify({
-      op:'subscribe',
-      args:[
-        {instType:'UMCBL', channel:'books', instId:'BTCUSDT'},
-        {instType:'UMCBL', channel:'trade', instId:'BTCUSDT'},
-        {instType:'UMCBL', channel:'candle1m', instId:'BTCUSDT'},
-        {instType:'UMCBL', channel:'candle5m', instId:'BTCUSDT'}
+      op: "subscribe",
+      args: [
+        {
+          instType: "USDT-FUTURES",
+          channel: "candle1m",
+          instId: "BTCUSDT"
+        },
+        {
+          instType: "USDT-FUTURES",
+          channel: "candle5m",
+          instId: "BTCUSDT"
+        }
       ]
     }));
-
-    // 🔥 KEEP ALIVE
-    pingInterval = setInterval(()=>{
-      if(ws.readyState === 1){
-        ws.send('ping');
-      }
-    }, 20000);
   });
 
-  ws.on('message', (msg)=>{
-    try{
+  ws.on('message', (msg) => {
+    try {
+      const data = JSON.parse(msg.toString());
 
-      if(msg.toString() === 'pong') return;
-
-      const data = JSON.parse(msg);
-
-      if(data.arg?.channel==='books'){
-        const d=data.data?.[0];
-        if(d){
-          state.bids=d.bids||[];
-          state.asks=d.asks||[];
-        }
+      // Ping response
+      if (data.event === "ping") {
+        ws.send(JSON.stringify({ event: "pong" }));
+        return;
       }
 
-      if(data.arg?.channel==='trade'){
-        const t=data.data?.[0];
-        if(t){
-          state.price=Number(t.price);
+      if (!data.arg) return;
 
-          state.trades.push({
-            side:t.side,
-            size:Number(t.size),
-            price:Number(t.price)
-          });
+      const channel = data.arg.channel;
+      const c = data.data?.[0];
 
-          if(state.trades.length>50) state.trades.shift();
-        }
+      if (!c) return;
+
+      const candle = {
+        open: Number(c[1]),
+        high: Number(c[2]),
+        low: Number(c[3]),
+        close: Number(c[4])
+      };
+
+      if (channel === "candle1m") {
+        state.m1 = candle;
       }
 
-      if(data.arg?.channel==='candle1m'){
-        const c=data.data?.[0];
-        if(c){
-          state.b1.push({
-            open:Number(c[1]),
-            high:Number(c[2]),
-            low:Number(c[3]),
-            close:Number(c[4])
-          });
-
-          if(state.b1.length>100) state.b1.shift();
-        }
+      if (channel === "candle5m") {
+        state.m5 = candle;
       }
 
-      if(data.arg?.channel==='candle5m'){
-        const c=data.data?.[0];
-        if(c){
-          state.b5.push({
-            open:Number(c[1]),
-            high:Number(c[2]),
-            low:Number(c[3]),
-            close:Number(c[4])
-          });
-
-          if(state.b5.length>100) state.b5.shift();
-        }
-      }
-
-    }catch(e){}
+    } catch (e) {
+      console.log("PARSE ERROR", e.message);
+    }
   });
 
-  ws.on('close', ()=>{
+  ws.on('close', () => {
     console.log('❌ MARKET RECONNECT...');
-    clearInterval(pingInterval);
-    setTimeout(()=>connectMarket(state),3000);
+    setTimeout(() => connectMarket(state), 2000);
   });
 
-  ws.on('error', (e)=>{
-    console.log('WS ERROR', e.message);
+  ws.on('error', (e) => {
+    console.log('WS ERROR:', e.message);
   });
 }
 
