@@ -6,71 +6,80 @@ function connectMarket(state){
 
   ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
 
-  state.m1Closes = [];
-  state.m5Closes = [];
-
   ws.on('open', ()=>{
     console.log('MARKET WS OPEN');
 
+    // M1
     ws.send(JSON.stringify({
       op: "subscribe",
-      args: [
-        {
-          instType: "UMCBL",
-          channel: "ticker",
-          instId: "BTCUSDT"
-        },
-        {
-          instType: "UMCBL",
-          channel: "candles",
-          instId: "BTCUSDT",
-          period: "1m"
-        },
-        {
-          instType: "UMCBL",
-          channel: "candles",
-          instId: "BTCUSDT",
-          period: "5m"
-        }
-      ]
+      args: [{
+        instType: "UMCBL",
+        channel: "candle1m",
+        instId: "BTCUSDT"
+      }]
     }));
+
+    // M5
+    ws.send(JSON.stringify({
+      op: "subscribe",
+      args: [{
+        instType: "UMCBL",
+        channel: "candle5m",
+        instId: "BTCUSDT"
+      }]
+    }));
+
   });
 
   ws.on('message', (msg)=>{
-    const data = JSON.parse(msg.toString());
+    const json = JSON.parse(msg.toString());
 
-    if(!data.arg) return;
+    // DEBUG 🔥 lihat struktur asli
+    // console.log(JSON.stringify(json));
 
-    const channel = data.arg.channel;
+    if(!json.data || !json.arg) return;
 
-    // ===== PRICE =====
-    if(channel === 'ticker' && data.data){
-      state.price = parseFloat(data.data[0].last);
-      console.log('PRICE:', state.price);
-    }
+    const channel = json.arg.channel;
 
-    // ===== CANDLES =====
-    if(channel === 'candles' && data.data){
+    json.data.forEach(c => {
 
-      const period = data.arg.period;
-      const close = parseFloat(data.data[0][4]);
+      let close;
 
-      if(period === '1m'){
+      // FORMAT ARRAY
+      if(Array.isArray(c)){
+        close = parseFloat(c[4]);
+      }
+
+      // FORMAT OBJECT
+      else if(c.close){
+        close = parseFloat(c.close);
+      }
+
+      if(!close) return;
+
+      if(channel === "candle1m"){
         state.m1Closes.push(close);
-        if(state.m1Closes.length > 100) state.m1Closes.shift();
+        if(state.m1Closes.length > 200) state.m1Closes.shift();
       }
 
-      if(period === '5m'){
+      if(channel === "candle5m"){
         state.m5Closes.push(close);
-        if(state.m5Closes.length > 100) state.m5Closes.shift();
+        if(state.m5Closes.length > 200) state.m5Closes.shift();
       }
-    }
+
+    });
+
   });
 
   ws.on('close', ()=>{
     console.log('MARKET RECONNECT...');
     setTimeout(()=>connectMarket(state),2000);
   });
+
+  ws.on('error', (err)=>{
+    console.log('WS ERROR:', err.message);
+  });
+
 }
 
 module.exports = { connectMarket };
