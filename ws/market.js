@@ -6,7 +6,6 @@ function connectMarket(state) {
   ws.on('open', () => {
     console.log('📡 MARKET CONNECT');
 
-    // Subscribe candle M1 + M5
     ws.send(JSON.stringify({
       op: "subscribe",
       args: [
@@ -28,7 +27,7 @@ function connectMarket(state) {
     try {
       const data = JSON.parse(msg.toString());
 
-      // Ping response
+      // handle ping
       if (data.event === "ping") {
         ws.send(JSON.stringify({ event: "pong" }));
         return;
