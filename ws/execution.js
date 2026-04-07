@@ -8,7 +8,7 @@ let reconnectDelay = 2000;
 
 function connectTrade(){
 
-  ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
+  ws = new WebSocket('wss://ws.bitget.com/v2/ws/private');
 
   ws.on('open', ()=>{
     console.log('WS OPEN');
@@ -62,46 +62,4 @@ function login(){
   console.log('LOGIN SENT');
 }
 
-function sendOrder(signal){
-
-  if(!ws || ws.readyState!==1) return;
-
-  ws.send(JSON.stringify({
-    op:'trade',
-    args:[{
-      symbol:process.env.SYMBOL,
-      marginCoin:process.env.MARGIN,
-      size:process.env.SIZE,
-      side:signal.type==='BUY'?'open_long':'open_short',
-      orderType:'market',
-      clientOid:'BOT-'+Date.now()
-    }]
-  }));
-
-  console.log('OPEN:', signal.type);
-}
-
-function closePosition(position){
-
-  if(!ws || ws.readyState!==1) return;
-
-  const side = position.type==='BUY'
-    ? 'close_long'
-    : 'close_short';
-
-  ws.send(JSON.stringify({
-    op:'trade',
-    args:[{
-      symbol:process.env.SYMBOL,
-      marginCoin:process.env.MARGIN,
-      size:process.env.SIZE,
-      side:side,
-      orderType:'market',
-      clientOid:'CLOSE-'+Date.now()
-    }]
-  }));
-
-  console.log('CLOSE:', side);
-}
-
-module.exports={connectTrade,sendOrder,closePosition};
+module.exports={connectTrade};
