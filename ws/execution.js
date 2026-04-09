@@ -1,70 +1,25 @@
-const WebSocket = require('ws');
-const crypto = require('crypto');
-require('dotenv').config();
+function sendOrder(signal, state){
 
-let ws;
+  const price = state.price;
 
-function connectTrade(){
+  let tp, sl;
 
-  if(!process.env.API_KEY || !process.env.API_SECRET || !process.env.API_PASSPHRASE){
-    console.log("❌ ENV NOT LOADED");
-    return;
+  if(signal.type === "long"){
+    tp = price * 1.006; // +0.6%
+    sl = price * 0.997; // -0.3%
   }
 
-  ws = new WebSocket('wss://ws.bitget.com/v2/ws/private');
+  if(signal.type === "short"){
+    tp = price * 0.994; // -0.6%
+    sl = price * 1.003; // +0.3%
+  }
 
-  ws.on('open', () => {
-    console.log('WS TRADE OPEN');
+  console.log("🚀 ORDER:", signal.type);
+  console.log("📍 ENTRY:", price);
+  console.log("🎯 TP:", tp.toFixed(2));
+  console.log("🛑 SL:", sl.toFixed(2));
 
-    const timestamp = Date.now().toString();
-    const sign = crypto
-      .createHmac('sha256', process.env.API_SECRET)
-      .update(timestamp + 'GET' + '/user/verify')
-      .digest('base64');
-
-    ws.send(JSON.stringify({
-      op: 'login',
-      args: [{
-        apiKey: process.env.API_KEY,
-        passphrase: process.env.API_PASSPHRASE,
-        timestamp,
-        sign
-      }]
-    }));
-
-    console.log('LOGIN SENT');
-  });
-
-  ws.on('message', (msg)=>{
-    const data = JSON.parse(msg.toString());
-
-    if(data.event === 'login'){
-      console.log('LOGIN SUCCESS FROM SERVER ✅');
-    }
-  });
-
-  ws.on('close', ()=>{
-    console.log('TRADE RECONNECT...');
-    setTimeout(connectTrade, 2000);
-  });
+  // nanti bisa connect ke API Bitget di sini
 }
 
-function sendOrder(signal){
-  if(!ws || ws.readyState !== 1) return;
-
-  ws.send(JSON.stringify({
-    op: 'trade',
-    args: [{
-      symbol: process.env.SYMBOL,
-      marginCoin: 'USDT',
-      size: process.env.SIZE,
-      side: signal.type === 'BUY' ? 'open_long' : 'open_short',
-      orderType: 'market',
-      clientOid: 'bot_' + Date.now()
-    }]
-  }));
-
-  console.log('OPEN:', signal.type);
-}
-
-module.exports = { connectTrade, sendOrder };
+module.exports = { sendOrder };
