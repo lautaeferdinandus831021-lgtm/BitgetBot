@@ -1,19 +1,17 @@
 const WebSocket = require('ws');
 
-let ws;
-
 function connectMarket(state){
 
-  ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
+  const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
 
-  ws.on('open', ()=>{
-    console.log('MARKET WS OPEN');
+  ws.on('open', () => {
+    console.log('📡 MARKET WS OPEN');
 
     ws.send(JSON.stringify({
       op: "subscribe",
       args: [
         {
-          instType: "UMCBL",
+          instType: "USDT-FUTURES",
           channel: "candle1m",
           instId: "BTCUSDT"
         }
@@ -21,40 +19,35 @@ function connectMarket(state){
     }));
   });
 
-  ws.on('message', (msg)=>{
-    const data = JSON.parse(msg.toString());
+  ws.on('message', (msg) => {
+    try{
+      const data = JSON.parse(msg);
 
-    if(data.data){
-      const candle = data.data[0];
+      if(data.action === 'update' && data.data){
 
-      // FORMAT BITGET:
-      // [timestamp, open, high, low, close, volume]
+        const candle = data.data[0];
 
-      const close = parseFloat(candle[4]);
+        const close = parseFloat(candle[4]);
 
-      // ===== M1 =====
-      state.m1Closes.push(close);
-      if(state.m1Closes.length > 100){
-        state.m1Closes.shift();
-      }
+        state.price = close;
 
-      // ===== M5 (AGGREGATE) =====
-      if(state.m1Closes.length % 5 === 0){
-        state.m5Closes.push(close);
-        if(state.m5Closes.length > 100){
-          state.m5Closes.shift();
+        // 🔥 UPDATE M1 CLOSE
+        state.m1Closes.push(close);
+        if(state.m1Closes.length > 100){
+          state.m1Closes.shift();
         }
+
+        console.log("📊 PRICE:", close);
       }
 
-      state.price = close;
-
-      console.log("CLOSE:", close);
+    }catch(e){
+      console.log("WS ERROR", e.message);
     }
   });
 
-  ws.on('close', ()=>{
-    console.log('MARKET RECONNECT...');
-    setTimeout(()=>connectMarket(state),2000);
+  ws.on('close', () => {
+    console.log("❌ WS CLOSED, RECONNECT...");
+    setTimeout(()=> connectMarket(state), 2000);
   });
 }
 
