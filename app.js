@@ -4,7 +4,7 @@ const { connectTrade, sendOrder } = require('./ws/execution');
 const { connectMarket } = require('./ws/market');
 const { analyze } = require('./strategy/pro');
 const { updateTrailing } = require('./risk/trailing');
-const { loadHistory } = require('./ws/history');
+const { loadHistory } = require('./core/history');
 
 let state = {
   price: 0,
@@ -12,50 +12,43 @@ let state = {
   m5Closes: []
 };
 
+// 🔥 LOAD HISTORY DULU
+loadHistory(state);
+
+connectTrade();
+connectMarket(state);
+
 let lastSignal = null;
 let lastTradeTime = 0;
 
-(async () => {
+setInterval(()=>{
 
-  // 🔥 LOAD HISTORY DULU
-  await loadHistory(state);
+  console.log(
+    "M1:", state.m1Closes.length,
+    "M5:", state.m5Closes.length
+  );
 
-  connectTrade();
-  connectMarket(state);
+  if(state.m1Closes.length < 10) return;
+  if(state.m5Closes.length < 10) return;
 
-  setInterval(()=>{
+  const signal = analyze(state);
 
-    console.log(
-      "M1:", state.m1Closes.length,
-      "M5:", state.m5Closes.length
-    );
+  if(signal){
+    const now = Date.now();
 
-    // VALIDASI DATA
-    if(state.m1Closes.length < 10) return;
-    if(state.m5Closes.length < 10) return;
+    if(lastSignal === signal.type) return;
+    if(now - lastTradeTime < 5000) return;
 
-    const signal = analyze(state);
+    console.log("SIGNAL:", signal.type);
 
-    if(signal){
+    sendOrder(signal);
 
-      const now = Date.now();
+    lastSignal = signal.type;
+    lastTradeTime = now;
+  }
 
-      if(lastSignal === signal.type) return;
-      if(now - lastTradeTime < 5000) return;
+  if(state.price){
+    updateTrailing(state.price);
+  }
 
-      console.log("SIGNAL:", signal.type);
-
-      sendOrder(signal);
-
-      lastSignal = signal.type;
-      lastTradeTime = now;
-    }
-
-    // TRAILING
-    if(state.price){
-      updateTrailing(state.price);
-    }
-
-  }, 1000);
-
-})();
+}, 1000);

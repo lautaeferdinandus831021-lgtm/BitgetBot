@@ -6,29 +6,27 @@ let ws;
 
 function connectTrade(){
 
-  // 🔥 VALIDASI ENV
-  if(!process.env.API_SECRET){
+  if(!process.env.API_KEY || !process.env.API_SECRET || !process.env.API_PASSPHRASE){
     console.log("❌ ENV NOT LOADED");
     return;
   }
 
   ws = new WebSocket('wss://ws.bitget.com/v2/ws/private');
 
-  ws.on('open', ()=>{
+  ws.on('open', () => {
     console.log('WS TRADE OPEN');
 
     const timestamp = Date.now().toString();
-
     const sign = crypto
       .createHmac('sha256', process.env.API_SECRET)
       .update(timestamp + 'GET' + '/user/verify')
       .digest('base64');
 
     ws.send(JSON.stringify({
-      op: "login",
+      op: 'login',
       args: [{
         apiKey: process.env.API_KEY,
-        passphrase: process.env.PASSPHRASE,
+        passphrase: process.env.API_PASSPHRASE,
         timestamp,
         sign
       }]
@@ -49,22 +47,20 @@ function connectTrade(){
     console.log('TRADE RECONNECT...');
     setTimeout(connectTrade, 2000);
   });
-
 }
 
 function sendOrder(signal){
-
   if(!ws || ws.readyState !== 1) return;
 
   ws.send(JSON.stringify({
     op: 'trade',
     args: [{
       symbol: process.env.SYMBOL,
-      marginCoin: process.env.MARGIN,
+      marginCoin: 'USDT',
       size: process.env.SIZE,
       side: signal.type === 'BUY' ? 'open_long' : 'open_short',
       orderType: 'market',
-      clientOid: 'BOT-' + Date.now()
+      clientOid: 'bot_' + Date.now()
     }]
   }));
 
