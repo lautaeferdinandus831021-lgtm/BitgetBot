@@ -57,3 +57,8 @@ async function start(){
 }
 
 start();
+
+console.log("KEY:", process.env.API_KEY);
+console.log("SECRET:", process.env.API_SECRET);
+console.log("PASS:", process.env.API_PASSPHRASE);
+
