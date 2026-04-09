@@ -6,56 +6,47 @@ const { analyze } = require('./strategy/pro');
 const { updateTrailing } = require('./risk/trailing');
 const { loadHistory } = require('./core/history');
 
-let state = {
+const state = {
   price: 0,
   m1Closes: [],
   m5Closes: []
 };
 
-// 🔥 LOAD HISTORY DULU
-(async () => {
-  await loadHistory(state);
-})();
-
-connectTrade();
-connectMarket(state);
-
 let lastSignal = null;
 let lastTradeTime = 0;
 
-setInterval(()=>{
+async function start(){
 
-  // 🔥 DEBUG DATA
-  console.log(
-    "M1:", state.m1Closes.length,
-    "M5:", state.m5Closes.length
-  );
+  console.log("📦 LOAD HISTORY...");
+  await loadHistory(state);
 
-  // ===== VALIDASI =====
-  if(!state.m1Closes || state.m1Closes.length < 10) return;
-  if(!state.m5Closes || state.m5Closes.length < 10) return;
+  connectMarket(state);
+  connectTrade();
 
-  const signal = analyze(state);
+  setInterval(() => {
 
-  if(signal){
+    if(!state.price) return;
 
-    const now = Date.now();
+    const signal = analyze(state);
 
+    // ===== PROTECTION =====
+    if(!signal) return;
     if(lastSignal === signal.type) return;
-    if(now - lastTradeTime < 5000) return;
+    if(Date.now() - lastTradeTime < 10000) return;
 
     console.log("SIGNAL:", signal.type);
 
-    sendOrder(signal);
+    sendOrder(signal, state);
 
     lastSignal = signal.type;
-    lastTradeTime = now;
-  }
+    lastTradeTime = Date.now();
 
-  // ===== TRAILING =====
-  if(state.price){
-    updateTrailing(state.price);
-  }
+    // ===== TRAILING =====
+    if(state.price){
+      updateTrailing(state.price);
+    }
 
-}, 1000);
+  }, 1000);
+}
 
+start();
