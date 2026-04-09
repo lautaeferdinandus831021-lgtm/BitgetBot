@@ -52,3 +52,9 @@ setInterval(()=>{
   }
 
 }, 1000);
+
+const { loadHistory } = require('./core/history');
+
+// LOAD AWAL SEBELUM WS
+loadHistory(state);
+
