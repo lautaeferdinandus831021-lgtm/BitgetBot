@@ -1,12 +1,19 @@
 const axios = require('axios');
 const crypto = require('crypto');
+require('dotenv').config({ path: '.env' });
 
 const API_KEY = process.env.API_KEY;
 const API_SECRET = process.env.API_SECRET;
 const PASSPHRASE = process.env.API_PASSPHRASE;
 
+if(!API_SECRET){
+  console.log("❌ API_SECRET NOT LOADED");
+  process.exit();
+}
+
 function sign(timestamp, method, path, body = ''){
   const message = timestamp + method + path + body;
+
   return crypto
     .createHmac('sha256', API_SECRET)
     .update(message)
@@ -14,7 +21,6 @@ function sign(timestamp, method, path, body = ''){
 }
 
 async function getBalance(){
-
   const timestamp = Date.now().toString();
   const path = "/api/v2/mix/account/accounts?productType=USDT-FUTURES";
   const url = "https://api.bitget.com" + path;
@@ -32,7 +38,6 @@ async function getBalance(){
     });
 
     const data = res.data.data;
-
     const usdt = data.find(acc => acc.marginCoin === "USDT");
 
     return usdt ? parseFloat(usdt.available) : 0;
