@@ -3,8 +3,9 @@ require('dotenv').config({ path: '.env' });
 const { connectTrade, sendOrder } = require('./ws/execution');
 const { connectMarket } = require('./ws/market');
 const { analyze } = require('./strategy/pro');
-const { updateTrailing } = require('./risk/trailing');
+const { updateTrailing, setPosition } = require('./risk/trailing');
 const { loadHistory } = require('./core/history');
+const { getBalance } = require('./core/balance');
 
 const state = {
   price: 0,
@@ -23,30 +24,40 @@ async function start(){
   connectMarket(state);
   connectTrade();
 
-  setInterval(() => {
+  setInterval(async () => {
 
     if(!state.price) return;
 
     const signal = analyze(state);
 
-    // ===== PROTECTION =====
     if(!signal) return;
+
+    console.log("📊 SIGNAL:", signal.type);
+
+    // ===== CEK SALDO =====
+    const balance = await getBalance();
+    console.log("💰 BALANCE:", balance);
+
+    if(balance <= 0){
+      console.log("⚠️ NO BALANCE → ANALISA ONLY");
+      return;
+    }
+
+    // ===== PROTECTION =====
     if(lastSignal === signal.type) return;
     if(Date.now() - lastTradeTime < 10000) return;
 
-    console.log("SIGNAL:", signal.type);
-
+    // ===== EXECUTE =====
     sendOrder(signal, state);
+    setPosition(signal.type, state.price);
 
     lastSignal = signal.type;
     lastTradeTime = Date.now();
 
     // ===== TRAILING =====
-    if(state.price){
-      updateTrailing(state.price);
-    }
+    updateTrailing(state.price);
 
-  }, 1000);
+  }, 2000);
 }
 
 start();
