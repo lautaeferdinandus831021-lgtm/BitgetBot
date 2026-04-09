@@ -1,6 +1,6 @@
 require('dotenv').config({ path: '.env' });
 
-const { connectTrade, sendOrder } = require('./ws/execution');
+const { sendOrder } = require('./ws/execution'); // ❌ hapus connectTrade
 const { connectMarket } = require('./ws/market');
 const { analyze } = require('./strategy/pro');
 const { updateTrailing, setPosition } = require('./risk/trailing');
@@ -22,7 +22,7 @@ async function start(){
   await loadHistory(state);
 
   connectMarket(state);
-  connectTrade();
+  // ❌ connectTrade(); DIHAPUS
 
   setInterval(async () => {
 
@@ -34,7 +34,6 @@ async function start(){
 
     console.log("📊 SIGNAL:", signal.type);
 
-    // ===== CEK SALDO =====
     const balance = await getBalance();
     console.log("💰 BALANCE:", balance);
 
@@ -43,18 +42,15 @@ async function start(){
       return;
     }
 
-    // ===== PROTECTION =====
     if(lastSignal === signal.type) return;
     if(Date.now() - lastTradeTime < 10000) return;
 
-    // ===== EXECUTE =====
     sendOrder(signal, state);
     setPosition(signal.type, state.price);
 
     lastSignal = signal.type;
     lastTradeTime = Date.now();
 
-    // ===== TRAILING =====
     updateTrailing(state.price);
 
   }, 2000);
