@@ -2,9 +2,12 @@
   "name": "bitget-futures-final",
   "version": "3.0.0",
   "main": "app.js",
-  "scripts": { "start": "node app.js" },
+  "scripts": {
+    "start": "node app.js"
+  },
   "dependencies": {
-    "ws": "^8.13.0",
-    "dotenv": "^16.0.3"
+    "axios": "^1.15.0",
+    "dotenv": "^16.0.3",
+    "ws": "^8.13.0"
   }
 }
