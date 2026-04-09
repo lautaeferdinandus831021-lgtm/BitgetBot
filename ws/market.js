@@ -1,5 +1,7 @@
 const WebSocket = require('ws');
 
+let bufferM1 = [];
+
 function connectMarket(state){
 
   const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
@@ -26,15 +28,31 @@ function connectMarket(state){
       if(data.action === 'update' && data.data){
 
         const candle = data.data[0];
-
         const close = parseFloat(candle[4]);
 
         state.price = close;
 
-        // 🔥 UPDATE M1 CLOSE
+        // ===== M1 =====
         state.m1Closes.push(close);
         if(state.m1Closes.length > 100){
           state.m1Closes.shift();
+        }
+
+        // ===== BUILD M5 =====
+        bufferM1.push(close);
+
+        if(bufferM1.length === 5){
+          const m5Close = bufferM1[4];
+
+          state.m5Closes.push(m5Close);
+
+          if(state.m5Closes.length > 100){
+            state.m5Closes.shift();
+          }
+
+          console.log("🟡 M5 NEW:", m5Close);
+
+          bufferM1 = [];
         }
 
         console.log("📊 PRICE:", close);
