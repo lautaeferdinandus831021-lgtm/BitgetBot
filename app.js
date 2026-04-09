@@ -1,16 +1,10 @@
-require('dotenv').config();
+require('dotenv').config({ path: '.env' });
 
 const { connectTrade, sendOrder } = require('./ws/execution');
 const { connectMarket } = require('./ws/market');
 const { analyze } = require('./strategy/pro');
 const { updateTrailing } = require('./risk/trailing');
-const { loadHistory } = require('./core/history'); // ✅ hanya 1
-
-// ===== VALIDASI ENV =====
-if(!process.env.API_SECRET){
-  console.log("❌ ENV NOT LOADED");
-  process.exit();
-}
+const { loadHistory } = require('./core/history');
 
 let state = {
   price: 0,
@@ -18,60 +12,50 @@ let state = {
   m5Closes: []
 };
 
-// ===== INIT =====
-async function start(){
-
-  console.log("🚀 BOT START");
-
-  // 🔥 LOAD HISTORY DULU
+// 🔥 LOAD HISTORY DULU
+(async () => {
   await loadHistory(state);
+})();
 
-  console.log("AFTER LOAD:");
-  console.log("M1:", state.m1Closes.length);
-  console.log("M5:", state.m5Closes.length);
+connectTrade();
+connectMarket(state);
 
-  connectTrade();
-  connectMarket(state);
+let lastSignal = null;
+let lastTradeTime = 0;
 
-  let lastSignal = null;
-  let lastTradeTime = 0;
+setInterval(()=>{
 
-  setInterval(()=>{
+  // 🔥 DEBUG DATA
+  console.log(
+    "M1:", state.m1Closes.length,
+    "M5:", state.m5Closes.length
+  );
 
-    // 🔥 DEBUG
-    console.log(
-      "M1:", state.m1Closes.length,
-      "M5:", state.m5Closes.length
-    );
+  // ===== VALIDASI =====
+  if(!state.m1Closes || state.m1Closes.length < 10) return;
+  if(!state.m5Closes || state.m5Closes.length < 10) return;
 
-    // ===== VALIDASI DATA =====
-    if(!state.m1Closes || state.m1Closes.length < 10) return;
-    if(!state.m5Closes || state.m5Closes.length < 10) return;
+  const signal = analyze(state);
 
-    const signal = analyze(state);
+  if(signal){
 
-    if(signal){
+    const now = Date.now();
 
-      const now = Date.now();
+    if(lastSignal === signal.type) return;
+    if(now - lastTradeTime < 5000) return;
 
-      if(lastSignal === signal.type) return;
-      if(now - lastTradeTime < 5000) return;
+    console.log("SIGNAL:", signal.type);
 
-      console.log("SIGNAL:", signal.type);
+    sendOrder(signal);
 
-      sendOrder(signal);
+    lastSignal = signal.type;
+    lastTradeTime = now;
+  }
 
-      lastSignal = signal.type;
-      lastTradeTime = now;
-    }
+  // ===== TRAILING =====
+  if(state.price){
+    updateTrailing(state.price);
+  }
 
-    // ===== TRAILING =====
-    if(state.price){
-      updateTrailing(state.price);
-    }
+}, 1000);
 
-  }, 1000);
-
-}
-
-start();

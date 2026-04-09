@@ -1,39 +1,40 @@
-require('dotenv').config({ path: '.env.market' });
 const axios = require('axios');
 
-const SYMBOL = process.env.SYMBOL;
-const PRODUCT_TYPE = process.env.PRODUCT_TYPE;
-const LIMIT = process.env.LIMIT;
+const BASE_URL = 'https://api.bitget.com';
 
 async function getCandles(granularity){
-  const res = await axios.get('https://api.bitget.com/api/v2/mix/market/candles', {
-    params: {
-      symbol: SYMBOL,
-      productType: PRODUCT_TYPE,
-      granularity: granularity,
-      limit: LIMIT
-    }
-  });
-
-  return res.data.data.map(c => parseFloat(c[4])); // CLOSE PRICE
-}
-
-async function loadHistory(state){
   try{
-    console.log("⏳ LOAD HISTORY...");
+    const res = await axios.get(`${BASE_URL}/api/v2/mix/market/candles`, {
+      params: {
+        symbol: 'BTCUSDT',
+        productType: 'USDT-FUTURES',
+        granularity: granularity,
+        limit: 100
+      }
+    });
 
-    state.m1Closes = await getCandles(process.env.GRANULARITY_M1);
-    state.m5Closes = await getCandles(process.env.GRANULARITY_M5);
-
-    console.log("✅ HISTORY LOADED");
-    console.log(
-      "M1:", state.m1Closes.length,
-      "M5:", state.m5Closes.length
-    );
+    // format: [time, open, high, low, close, volume]
+    return res.data.data.map(c => parseFloat(c[4]));
 
   }catch(err){
     console.log("❌ HISTORY ERROR:", err.response?.data || err.message);
+    return [];
   }
+}
+
+async function loadHistory(state){
+  console.log("📥 LOAD HISTORY...");
+
+  const m1 = await getCandles('1m');
+  const m5 = await getCandles('5m');
+
+  state.m1Closes = m1;
+  state.m5Closes = m5;
+
+  console.log("✅ HISTORY LOADED:",
+    "M1:", m1.length,
+    "M5:", m5.length
+  );
 }
 
 module.exports = { loadHistory };
