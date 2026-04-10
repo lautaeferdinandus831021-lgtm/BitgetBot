@@ -1,51 +1,61 @@
+
 const axios = require('axios');
 const crypto = require('crypto');
-require('dotenv').config({ path: '.env' });
 
-const API_KEY = process.env.API_KEY;
-const API_SECRET = process.env.API_SECRET;
-const PASSPHRASE = process.env.API_PASSPHRASE;
-
-if(!API_SECRET){
-  console.log("❌ API_SECRET NOT LOADED");
-  process.exit();
-}
+const BASE_URL = 'https://api.bitget.com';
 
 function sign(timestamp, method, path, body = ''){
   const message = timestamp + method + path + body;
-
   return crypto
-    .createHmac('sha256', API_SECRET)
+    .createHmac('sha256', process.env.API_SECRET)
     .update(message)
     .digest('base64');
 }
 
 async function getBalance(){
-  const timestamp = Date.now().toString();
-  const path = "/api/v2/mix/account/accounts?productType=USDT-FUTURES";
-  const url = "https://api.bitget.com" + path;
-
-  const signValue = sign(timestamp, "GET", path);
 
   try{
-    const res = await axios.get(url, {
+
+    const timestamp = Date.now().toString();
+    const method = 'GET';
+    const path = '/api/v2/mix/account/accounts';
+    const query = '?productType=USDT-FUTURES';
+
+    const signStr = sign(timestamp, method, path + query);
+
+    const res = await axios.get(BASE_URL + path + query, {
       headers: {
-        "ACCESS-KEY": API_KEY,
-        "ACCESS-SIGN": signValue,
-        "ACCESS-TIMESTAMP": timestamp,
-        "ACCESS-PASSPHRASE": PASSPHRASE
+        'ACCESS-KEY': process.env.API_KEY,
+        'ACCESS-SIGN': signStr,
+        'ACCESS-TIMESTAMP': timestamp,
+        'ACCESS-PASSPHRASE': process.env.API_PASSPHRASE,
+        'Content-Type': 'application/json'
       }
     });
 
-    const data = res.data.data;
-    const usdt = data.find(acc => acc.marginCoin === "USDT");
+    if(res.data.code !== "00000"){
+      console.log("❌ BALANCE ERROR:", res.data);
+      return 0;
+    }
 
-    return usdt ? parseFloat(usdt.available) : 0;
+    const data = res.data.data;
+
+    // ambil USDT
+    const usdt = data.find(a => a.marginCoin === 'USDT');
+
+    if(!usdt) return 0;
+
+    const balance = parseFloat(usdt.available);
+
+    console.log("💰 BALANCE:", balance);
+
+    return balance;
 
   }catch(err){
-    console.log("❌ BALANCE ERROR:", err.response?.data || err.message);
+    console.log("❌ BALANCE FETCH ERROR:", err.message);
     return 0;
   }
 }
 
 module.exports = { getBalance };
+
