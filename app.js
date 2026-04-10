@@ -1,64 +1,64 @@
-require('dotenv').config({ path: '.env' });
 
-const { sendOrder } = require('./ws/execution'); // ❌ hapus connectTrade
+require('dotenv').config();
+
+const { connectTrade, sendOrder } = require('./ws/execution');
 const { connectMarket } = require('./ws/market');
 const { analyze } = require('./strategy/pro');
-const { updateTrailing, setPosition } = require('./risk/trailing');
-const { loadHistory } = require('./core/history');
+const { updateTrailing } = require('./risk/trailing');
 const { getBalance } = require('./core/balance');
 
-const state = {
+let state = {
   price: 0,
   m1Closes: [],
-  m5Closes: []
+  m5Closes: [],
+  balance: 0
 };
+
+connectTrade();
+connectMarket(state);
 
 let lastSignal = null;
 let lastTradeTime = 0;
 
-async function start(){
+// 🔥 UPDATE BALANCE TIAP 10 DETIK
+setInterval(async ()=>{
+  state.balance = await getBalance();
+}, 10000);
 
-  console.log("📦 LOAD HISTORY...");
-  await loadHistory(state);
+setInterval(()=>{
 
-  connectMarket(state);
-  // ❌ connectTrade(); DIHAPUS
+  console.log(
+    "M1:", state.m1Closes.length,
+    "M5:", state.m5Closes.length,
+    "Balance:", state.balance
+  );
 
-  setInterval(async () => {
+  if(state.m1Closes.length < 20) return;
+  if(state.m5Closes.length < 20) return;
 
-    if(!state.price) return;
+  const signal = analyze(state);
 
-    const signal = analyze(state);
+  if(!signal) return;
 
-    if(!signal) return;
+  // ❌ kalau saldo kosong → NO TRADE
+  if(state.balance <= 0){
+    console.log("⚠️ NO BALANCE → ANALYZE ONLY");
+    return;
+  }
 
-    console.log("📊 SIGNAL:", signal.type);
+  if(lastSignal === signal.type) return;
+  if(Date.now() - lastTradeTime < 10000) return;
 
-    const balance = await getBalance();
-    console.log("💰 BALANCE:", balance);
+  console.log("📊 SIGNAL:", signal.type);
 
-    if(balance <= 0){
-      console.log("⚠️ NO BALANCE → ANALISA ONLY");
-      return;
-    }
+  sendOrder(signal);
 
-    if(lastSignal === signal.type) return;
-    if(Date.now() - lastTradeTime < 10000) return;
+  lastSignal = signal.type;
+  lastTradeTime = Date.now();
 
-    sendOrder(signal, state);
-    setPosition(signal.type, state.price);
-
-    lastSignal = signal.type;
-    lastTradeTime = Date.now();
-
+  if(state.price){
     updateTrailing(state.price);
+  }
 
-  }, 2000);
-}
-
-start();
-
-console.log("KEY:", process.env.API_KEY);
-console.log("SECRET:", process.env.API_SECRET);
-console.log("PASS:", process.env.API_PASSPHRASE);
+}, 1000);
 
