@@ -2,3 +2,4 @@
 appengine-generated/
 .env
 node_modules/
+.env
