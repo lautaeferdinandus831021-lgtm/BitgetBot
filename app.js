@@ -20,3 +20,12 @@ setTimeout(() => {
   placeOrder('buy');
 }, 5000);
 
+
+// ===== TEST ORDER =====
+const { placeOrder } = require('./core/api');
+
+setTimeout(() => {
+  console.log('🧪 TEST ORDER BUY...');
+  placeOrder('buy');
+}, 5000);
+
