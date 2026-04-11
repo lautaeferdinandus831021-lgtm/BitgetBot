@@ -6,6 +6,7 @@ const BASE_URL = 'https://api.bitget.com';
 
 function sign(timestamp, method, requestPath, body = '') {
   const message = timestamp + method + requestPath + body;
+
   return crypto
     .createHmac('sha256', process.env.API_SECRET)
     .update(message)
@@ -16,7 +17,7 @@ async function getBalance() {
   try {
     const timestamp = Date.now().toString();
     const method = 'GET';
-    const requestPath = '/api/mix/v1/account/accounts?productType=UMCBL';
+    const requestPath = '/api/v2/mix/account/accounts?productType=USDT-FUTURES';
 
     const signature = sign(timestamp, method, requestPath);
 
@@ -40,7 +41,7 @@ async function getBalance() {
     return 0;
 
   } catch (err) {
-    console.log('❌ FULL ERROR:', err.response?.data || err.message);
+    console.log('❌ BALANCE ERROR:', err.response?.data || err.message);
     return 0;
   }
 }
