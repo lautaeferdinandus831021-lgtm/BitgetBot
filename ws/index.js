@@ -27,21 +27,21 @@ ws.on('message', (msg) => {
 
       const { closed } = buildCandle(price);
 
-      // ❗ hanya saat candle close
-      if (closed) {
-        console.log('🕯️ CLOSE:', closed.close);
+      // ❗ PENTING: hanya saat candle close
+      if (!closed) return;
 
-        let signal = analyze(closed.close);
+      console.log('🕯️ CLOSE:', closed.close);
 
-        signal = filterSignal(signal);
+      let signal = analyze(closed.close);
 
-        if (signal === 'buy') {
-          console.log('🚀 FINAL BUY');
-        }
+      signal = filterSignal(signal);
 
-        if (signal === 'sell') {
-          console.log('🔥 FINAL SELL');
-        }
+      if (signal === 'buy') {
+        console.log('🚀 FINAL BUY');
+      }
+
+      if (signal === 'sell') {
+        console.log('🔥 FINAL SELL');
       }
     }
   } catch (err) {

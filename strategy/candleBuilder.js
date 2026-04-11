@@ -1,15 +1,24 @@
-let currentCandle = null;
+let current = null;
 
 function buildCandle(price) {
   const now = Date.now();
   const minute = Math.floor(now / 60000);
 
-  if (!currentCandle || currentCandle.minute !== minute) {
-    // candle close
-    const closed = currentCandle;
+  if (!current) {
+    current = {
+      minute,
+      open: price,
+      high: price,
+      low: price,
+      close: price
+    };
+    return { closed: null };
+  }
 
-    // new candle
-    currentCandle = {
+  if (minute !== current.minute) {
+    const closed = { ...current };
+
+    current = {
       minute,
       open: price,
       high: price,
@@ -17,15 +26,14 @@ function buildCandle(price) {
       close: price
     };
 
-    return { closed, current: currentCandle };
+    return { closed };
   }
 
-  // update candle
-  currentCandle.high = Math.max(currentCandle.high, price);
-  currentCandle.low = Math.min(currentCandle.low, price);
-  currentCandle.close = price;
+  current.high = Math.max(current.high, price);
+  current.low = Math.min(current.low, price);
+  current.close = price;
 
-  return { closed: null, current: currentCandle };
+  return { closed: null };
 }
 
 module.exports = { buildCandle };

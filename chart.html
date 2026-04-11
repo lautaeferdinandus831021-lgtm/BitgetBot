@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+
+<body style="margin:0;background:black;">
+
+<div id="chart" style="height:50vh;"></div>
+<div id="macd" style="height:25vh;"></div>
+<div id="rsi" style="height:25vh;"></div>
+
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'));
+const candle = chart.addCandlestickSeries();
+
+// BB
+const bbU = chart.addLineSeries({ color:'red' });
+const bbM = chart.addLineSeries({ color:'yellow' });
+const bbL = chart.addLineSeries({ color:'green' });
+
+// M5 overlay
+const m5line = chart.addLineSeries({ color:'blue' });
+
+// MACD
+const macdChart = LightweightCharts.createChart(document.getElementById('macd'));
+const macdLine = macdChart.addLineSeries({ color:'cyan' });
+const histo = macdChart.addHistogramSeries();
+
+// RSI
+const rsiChart = LightweightCharts.createChart(document.getElementById('rsi'));
+const rsiLine = rsiChart.addLineSeries({ color:'orange' });
+
+const ws = new WebSocket("ws://localhost:3000");
+
+let markers = [];
+
+ws.onmessage = (e) => {
+  const d = JSON.parse(e.data);
+
+  candle.update(d.candle);
+
+  // BB
+  bbU.update({ time:d.candle.time, value:d.bb.upper });
+  bbM.update({ time:d.candle.time, value:d.bb.middle });
+  bbL.update({ time:d.candle.time, value:d.bb.lower });
+
+  // M5 overlay
+  if (d.m5) {
+    m5line.update({ time:d.candle.time, value:d.m5 });
+  }
+
+  // MACD
+  macdLine.update({ time:d.candle.time, value:d.macd });
+  histo.update({
+    time:d.candle.time,
+    value:d.hist,
+    color: d.hist > 0 ? 'green' : 'red'
+  });
+
+  // RSI
+  if (d.rsi) {
+    rsiLine.update({ time:d.candle.time, value:d.rsi });
+  }
+
+  // SIGNAL
+  if (d.signal) {
+    markers.push({
+      time:d.candle.time,
+      position:d.signal==='buy'?'belowBar':'aboveBar',
+      color:d.signal==='buy'?'green':'red',
+      shape:d.signal==='buy'?'arrowUp':'arrowDown',
+      text:d.signal.toUpperCase()
+    });
+
+    candle.setMarkers(markers);
+  }
+};
+</script>
+
+</body>
+</html>
