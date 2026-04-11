@@ -1,43 +1,48 @@
-const { getBalance, placeOrder } = require('./core/api');
+require('dotenv').config();
 
-// dummy function (ganti dengan websocket kamu)
-function getPrice() {
-  return Math.floor(Math.random() * 1000) + 27000;
-}
+const { getBalance, placeOrder } = require('./core/api');
+const { getPrice } = require('./ws/price');
+
+let lastPrice = 0;
 
 async function start() {
-  console.log('🚀 Starting Bot...');
+  console.log('🚀 Starting Bot BTCUSDT...');
 
-  try {
-    const balance = await getBalance();
-    console.log('💰 Balance:', balance);
+  const balance = await getBalance();
+  console.log('💰 Balance:', balance);
 
-    if (!balance || balance <= 0) {
-      console.log('⚠️ Saldo kosong → MODE ANALISA SAJA');
+  if (!balance || balance <= 0) {
+    console.log('⚠️ Saldo kosong → MODE ANALISA BTCUSDT');
 
-      setInterval(() => {
-        const price = getPrice();
-        console.log('📊 PRICE:', price);
+    setInterval(() => {
+      const price = getPrice();
+      if (!price) return;
 
-        if (price > 27500) {
-          console.log('📈 SIGNAL: SELL');
-        } else {
-          console.log('📉 SIGNAL: BUY');
-        }
-      }, 3000);
+      console.log('📊 BTCUSDT PRICE:', price);
 
-      return;
-    }
+      if (lastPrice === 0) {
+        lastPrice = price;
+        return;
+      }
 
-    console.log('✅ Saldo ada → MODE TRADING');
+      if (price > lastPrice) {
+        console.log('📈 SIGNAL: BUY');
+      } else if (price < lastPrice) {
+        console.log('📉 SIGNAL: SELL');
+      }
 
-    setTimeout(() => {
-      placeOrder('buy');
-    }, 5000);
+      lastPrice = price;
 
-  } catch (err) {
-    console.error('❌ ERROR:', err.message);
+    }, 3000);
+
+    return;
   }
+
+  console.log('✅ MODE TRADING');
+
+  setTimeout(() => {
+    placeOrder('buy');
+  }, 5000);
 }
 
 start();
