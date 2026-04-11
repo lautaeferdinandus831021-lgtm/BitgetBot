@@ -1,12 +1,22 @@
 require('dotenv').config();
 
-const { placeOrder } = require('./core/api');
+const { placeOrder, getBalance } = require('./core/api');
 
 console.log('🚀 Starting Bot...');
 
-// test BUY
-setTimeout(() => {
+async function runBot() {
+  const balance = await getBalance();
+  console.log('💰 Balance:', balance);
+
+  if (balance <= 0) {
+    console.log('⚠️ Saldo kosong → MODE ANALISA SAJA');
+    return;
+  }
+
   console.log('🧪 TEST ORDER BUY...');
   placeOrder('buy');
-}, 5000);
+}
+
+// jalankan setelah 5 detik
+setTimeout(runBot, 5000);
 
