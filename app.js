@@ -2,23 +2,25 @@ require('dotenv').config();
 
 const { getBalance, placeOrder } = require('./core/api');
 const { getPrice } = require('./ws/price');
+const config = require('./config');
 
 let lastPrice = 0;
 
 async function start() {
-  console.log('🚀 Starting Bot BTCUSDT...');
+  console.log('🚀 Starting Bot:', config.SYMBOL);
 
   const balance = await getBalance();
   console.log('💰 Balance:', balance);
 
-  if (!balance || balance <= 0) {
-    console.log('⚠️ Saldo kosong → MODE ANALISA BTCUSDT');
+  // ✅ RULE: NO TRADE IF NO BALANCE
+  if (config.RULES.ANALYZE_ONLY_IF_NO_BALANCE && (!balance || balance <= 0)) {
+    console.log('⚠️ MODE ANALISA (NO TRADE)');
 
     setInterval(() => {
       const price = getPrice();
       if (!price) return;
 
-      console.log('📊 BTCUSDT PRICE:', price);
+      console.log('📊', config.SYMBOL, 'PRICE:', price);
 
       if (lastPrice === 0) {
         lastPrice = price;
