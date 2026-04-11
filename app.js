@@ -1,4 +1,5 @@
 require('dotenv').config();
+
 const { connect } = require('./ws/market');
 const { getBalance } = require('./core/api');
 
