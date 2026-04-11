@@ -3,8 +3,7 @@ require('dotenv').config();
 
 const { connectTrade, sendOrder } = require('./ws/execution');
 const { connectMarket } = require('./ws/market');
-const { analyze } = require('./strategy/pro');
-const { updateTrailing } = require('./risk/trailing');
+const { bollinger } = require('./strategy/bb');
 const { getBalance } = require('./core/balance');
 
 let state = {
@@ -14,51 +13,107 @@ let state = {
   balance: 0
 };
 
+let position = null;
+
 connectTrade();
 connectMarket(state);
-
-let lastSignal = null;
-let lastTradeTime = 0;
 
 // 🔥 UPDATE BALANCE TIAP 10 DETIK
 setInterval(async ()=>{
   state.balance = await getBalance();
 }, 10000);
 
+// 🔥 MIN BALANCE
+const MIN_BALANCE = 10;
+
+// 🔥 MAIN LOOP
 setInterval(()=>{
 
+  const price = state.price;
+  const bb = bollinger(state.m5Closes, 5, 1.2);
+
+  if(!price || !bb) return;
+
   console.log(
-    "M1:", state.m1Closes.length,
-    "M5:", state.m5Closes.length,
-    "Balance:", state.balance
+    "💰 Balance:", state.balance,
+    "| Price:", price
   );
 
-  if(state.m1Closes.length < 20) return;
-  if(state.m5Closes.length < 20) return;
+  // ===== ENTRY =====
+  if(!position){
 
-  const signal = analyze(state);
+    // ❌ SALDO TIDAK CUKUP
+    if(state.balance < MIN_BALANCE){
+      console.log("⚠️ NO BALANCE → ANALISA ONLY");
 
-  if(!signal) return;
+      if(price < bb.mid){
+        console.log("📊 SIGNAL LONG (NO TRADE)");
+      } else if(price > bb.mid){
+        console.log("📊 SIGNAL SHORT (NO TRADE)");
+      }
 
-  // ❌ kalau saldo kosong → NO TRADE
-  if(state.balance <= 0){
-    console.log("⚠️ NO BALANCE → ANALYZE ONLY");
-    return;
+      return;
+    }
+
+    // ✅ ENTRY REAL
+    if(price < bb.mid){
+      position = {
+        side: "LONG",
+        entry: price,
+        sl: bb.lower,
+        tp: bb.upper,
+        size: 0.03
+      };
+      console.log("🟢 OPEN LONG", position);
+      sendOrder({ type: "long", ...position });
+    }
+
+    else if(price > bb.mid){
+      position = {
+        side: "SHORT",
+        entry: price,
+        sl: bb.upper,
+        tp: bb.lower,
+        size: 0.03
+      };
+      console.log("🔴 OPEN SHORT", position);
+      sendOrder({ type: "short", ...position });
+    }
+
   }
 
-  if(lastSignal === signal.type) return;
-  if(Date.now() - lastTradeTime < 10000) return;
+  // ===== CLOSE =====
+  if(position){
 
-  console.log("📊 SIGNAL:", signal.type);
+    if(position.side === "LONG"){
 
-  sendOrder(signal);
+      if(price <= position.sl){
+        console.log("❌ SL HIT LONG");
+        position = null;
+      }
 
-  lastSignal = signal.type;
-  lastTradeTime = Date.now();
+      if(price >= position.tp){
+        console.log("💰 TP HIT LONG");
+        position = null;
+      }
 
-  if(state.price){
-    updateTrailing(state.price);
+    }
+
+    if(position.side === "SHORT"){
+
+      if(price >= position.sl){
+        console.log("❌ SL HIT SHORT");
+        position = null;
+      }
+
+      if(price <= position.tp){
+        console.log("💰 TP HIT SHORT");
+        position = null;
+      }
+
+    }
+
   }
 
-}, 1000);
+}, 2000);
 
