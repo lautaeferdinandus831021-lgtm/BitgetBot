@@ -1,22 +1,43 @@
-require('dotenv').config();
+const { getBalance, placeOrder } = require('./core/api');
 
-const { placeOrder, getBalance } = require('./core/api');
-
-console.log('🚀 Starting Bot...');
-
-async function runBot() {
-  const balance = await getBalance();
-  console.log('💰 Balance:', balance);
-
-  if (balance <= 0) {
-    console.log('⚠️ Saldo kosong → MODE ANALISA SAJA');
-    return;
-  }
-
-  console.log('🧪 TEST ORDER BUY...');
-  placeOrder('buy');
+// dummy function (ganti dengan websocket kamu)
+function getPrice() {
+  return Math.floor(Math.random() * 1000) + 27000;
 }
 
-// jalankan setelah 5 detik
-setTimeout(runBot, 5000);
+async function start() {
+  console.log('🚀 Starting Bot...');
 
+  try {
+    const balance = await getBalance();
+    console.log('💰 Balance:', balance);
+
+    if (!balance || balance <= 0) {
+      console.log('⚠️ Saldo kosong → MODE ANALISA SAJA');
+
+      setInterval(() => {
+        const price = getPrice();
+        console.log('📊 PRICE:', price);
+
+        if (price > 27500) {
+          console.log('📈 SIGNAL: SELL');
+        } else {
+          console.log('📉 SIGNAL: BUY');
+        }
+      }, 3000);
+
+      return;
+    }
+
+    console.log('✅ Saldo ada → MODE TRADING');
+
+    setTimeout(() => {
+      placeOrder('buy');
+    }, 5000);
+
+  } catch (err) {
+    console.error('❌ ERROR:', err.message);
+  }
+}
+
+start();
