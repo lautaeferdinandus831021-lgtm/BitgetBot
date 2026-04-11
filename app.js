@@ -14,17 +14,18 @@ let state = {
 };
 
 let position = null;
+let lastTradeTime = 0;
 
 connectTrade();
 connectMarket(state);
 
-// 🔥 UPDATE BALANCE TIAP 10 DETIK
+// 🔥 UPDATE BALANCE
 setInterval(async ()=>{
   state.balance = await getBalance();
 }, 10000);
 
-// 🔥 MIN BALANCE
 const MIN_BALANCE = 10;
+const COOLDOWN = 10000; // 10 detik
 
 // 🔥 MAIN LOOP
 setInterval(()=>{
@@ -34,15 +35,20 @@ setInterval(()=>{
 
   if(!price || !bb) return;
 
-  console.log(
-    "💰 Balance:", state.balance,
-    "| Price:", price
-  );
+  console.log("💰 Balance:", state.balance, "| Price:", price);
+
+  const now = Date.now();
 
   // ===== ENTRY =====
   if(!position){
 
-    // ❌ SALDO TIDAK CUKUP
+    // 🚫 COOLDOWN
+    if(now - lastTradeTime < COOLDOWN){
+      console.log("⏱ Cooldown...");
+      return;
+    }
+
+    // ❌ SALDO KOSONG
     if(state.balance < MIN_BALANCE){
       console.log("⚠️ NO BALANCE → ANALISA ONLY");
 
@@ -55,7 +61,7 @@ setInterval(()=>{
       return;
     }
 
-    // ✅ ENTRY REAL
+    // ✅ ENTRY
     if(price < bb.mid){
       position = {
         side: "LONG",
@@ -64,6 +70,7 @@ setInterval(()=>{
         tp: bb.upper,
         size: 0.03
       };
+      lastTradeTime = now;
       console.log("🟢 OPEN LONG", position);
       sendOrder({ type: "long", ...position });
     }
@@ -76,16 +83,24 @@ setInterval(()=>{
         tp: bb.lower,
         size: 0.03
       };
+      lastTradeTime = now;
       console.log("🔴 OPEN SHORT", position);
       sendOrder({ type: "short", ...position });
     }
 
   }
 
-  // ===== CLOSE =====
+  // ===== TRAILING + CLOSE =====
   if(position){
 
+    // 🔥 TRAILING PROFIT
     if(position.side === "LONG"){
+      const profit = price - position.entry;
+
+      if(profit > 50){ // trigger trailing
+        position.sl = Math.max(position.sl, price - 30);
+        console.log("📈 TRAILING LONG SL:", position.sl);
+      }
 
       if(price <= position.sl){
         console.log("❌ SL HIT LONG");
@@ -96,10 +111,15 @@ setInterval(()=>{
         console.log("💰 TP HIT LONG");
         position = null;
       }
-
     }
 
     if(position.side === "SHORT"){
+      const profit = position.entry - price;
+
+      if(profit > 50){
+        position.sl = Math.min(position.sl, price + 30);
+        console.log("📈 TRAILING SHORT SL:", position.sl);
+      }
 
       if(price >= position.sl){
         console.log("❌ SL HIT SHORT");
@@ -110,7 +130,6 @@ setInterval(()=>{
         console.log("💰 TP HIT SHORT");
         position = null;
       }
-
     }
 
   }
