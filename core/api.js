@@ -47,3 +47,46 @@ async function getBalance() {
 }
 
 module.exports = { getBalance };
+
+async function placeOrder(side = 'buy') {
+  try {
+    const timestamp = Date.now().toString();
+    const method = 'POST';
+    const requestPath = '/api/v2/mix/order/place-order';
+
+    const bodyObj = {
+      symbol: process.env.SYMBOL,
+      productType: 'USDT-FUTURES',
+      marginMode: 'crossed',
+      marginCoin: 'USDT',
+      size: process.env.SIZE,
+      side: side === 'buy' ? 'buy' : 'sell',
+      tradeSide: 'open',
+      orderType: 'market',
+      force: 'ioc'
+    };
+
+    const body = JSON.stringify(bodyObj);
+
+    const signature = sign(timestamp, method, requestPath, body);
+
+    const res = await axios.post(BASE_URL + requestPath, bodyObj, {
+      headers: {
+        'ACCESS-KEY': process.env.API_KEY,
+        'ACCESS-SIGN': signature,
+        'ACCESS-TIMESTAMP': timestamp,
+        'ACCESS-PASSPHRASE': process.env.PASSPHRASE,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('🚀 ORDER SUCCESS:', res.data);
+    return res.data;
+
+  } catch (err) {
+    console.log('❌ ORDER ERROR:', err.response?.data || err.message);
+  }
+}
+
+module.exports.placeOrder = placeOrder;
+
