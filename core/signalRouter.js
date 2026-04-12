@@ -1,20 +1,28 @@
-const { loadAll } = require('./loader');
+const { loadStrategies } = require('./strategyLoader');
 
-const strategies = loadAll();
+const strategies = loadStrategies();
 
-module.exports = {
-    analyze: (price) => {
-        const results = [];
+function analyze(price) {
+    let signals = [];
 
-        Object.values(strategies).flat().forEach(s => {
-            const res = s.analyze(price);
-            if (res) results.push(res);
-        });
+    strategies.forEach((strat) => {
+        try {
+            const result = strat.run(price);
 
-        if (results.length) {
-            console.log("🚀 SIGNAL:", results);
-        } else {
-            console.log("⏳ No signal");
+            if (result) {
+                signals.push({
+                    name: strat.name || 'unknown',
+                    signal: result
+                });
+            }
+        } catch (err) {
+            console.log('Error strategy:', strat.name);
         }
+    });
+
+    if (signals.length > 0) {
+        console.log('🚀 SIGNAL:', signals);
     }
-};
+}
+
+module.exports = { analyze };
