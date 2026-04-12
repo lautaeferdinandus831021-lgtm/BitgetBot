@@ -1,17 +1,27 @@
 require('dotenv').config();
-const { WebsocketClientV2 } = require('bitget-api'); // 🔥 FIX
+const { WebsocketClientV2 } = require('bitget-api');
 
-const ws = new WebsocketClientV2({
-  apiKey: process.env.API_KEY,
-  apiSecret: process.env.API_SECRET,
-  apiPass: process.env.PASSPHRASE,
+const ws = new WebsocketClientV2();
+
+const SYMBOL = "BTCUSDT";
+const PRODUCT_TYPE = "USDT-FUTURES";
+
+// ✅ SUBSCRIBE BENAR
+ws.subscribeTopic({
+  channel: "candle1m",
+  instId: SYMBOL,
+  instType: PRODUCT_TYPE,
 });
 
-// TEST
-ws.subscribeTopic('mc', 'candle1m:BTCUSDT');
-
+// LISTENER
 ws.on('update', (msg) => {
   console.log("DATA:", msg);
 });
 
-console.log("🚀 WS CONNECTED");
+ws.on('open', () => {
+  console.log("🚀 WS CONNECTED");
+});
+
+ws.on('error', (err) => {
+  console.log("❌ WS ERROR:", err);
+});
