@@ -1,56 +1,56 @@
 require('dotenv').config();
 
-const config = require('./config');
 const getPrice = require('./ws/price');
-const execute = require('./ws/execution');
-
-// 🔥 pakai MACD strategy
+const { placeOrder } = require('./ws/execution');
 const strategy = require('./strategy/macd');
 
-let lastSignal = null;
+const PAIR = 'BTCUSDT';
+const SIZE = 0.001;
 
-async function run() {
-    console.log("🚀 BOT STARTED (MACD MODE)");
+let prices = [];
 
-    setInterval(async () => {
-        try {
-            const price = await getPrice(config.pair);
+console.log("🚀 BOT STARTED (MACD MODE)");
 
-            if (!price) return;
+setInterval(async () => {
+    const price = await getPrice(PAIR);
 
-            console.log("PRICE:", price);
+    if (!price) return;
 
-            const signal = strategy(price);
+    console.log("PRICE:", price);
 
-            if (!signal) return;
+    // simpan data untuk MACD
+    prices.push(price);
+    if (prices.length > 50) prices.shift();
 
-            console.log("SIGNAL:", signal);
+    // tunggu data cukup
+    if (prices.length < 30) return;
 
-            // hindari spam order
-            if (signal.signal === lastSignal) return;
-            lastSignal = signal.signal;
+    const signal = strategy(prices);
 
-            // cek saldo
-            const balance = await execute.getBalance();
+    console.log("SIGNAL:", signal);
 
-            if (balance < 100) {
-                console.log("MODE ANALYSIS ONLY (saldo < 100)");
-                return;
-            }
+    // cek saldo (simple logic)
+    const balance = parseFloat(process.env.BALANCE || "0");
 
-            console.log("EXECUTE TRADE...");
+    if (balance < 100) {
+        console.log("MODE ANALYSIS ONLY (saldo < 100)");
+        return;
+    }
 
-            await execute.order({
-                pair: config.pair,
-                side: signal.signal === 'BUY' ? 'buy' : 'sell',
-                size: 0.001,
-                type: config.orderType || 'market'
-            });
+    if (signal === 'BUY') {
+        await placeOrder({
+            pair: PAIR,
+            side: 'buy',
+            size: SIZE
+        });
+    }
 
-        } catch (err) {
-            console.log("ERROR:", err.message);
-        }
-    }, 3000);
-}
+    if (signal === 'SELL') {
+        await placeOrder({
+            pair: PAIR,
+            side: 'sell',
+            size: SIZE
+        });
+    }
 
-run();
+}, 3000);
