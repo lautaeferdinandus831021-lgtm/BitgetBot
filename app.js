@@ -1,28 +1,39 @@
 require('dotenv').config();
 
-const { server, broadcast } = require('./server');
+const { connect } = require('./core/ws');
 const { buildCandle } = require('./strategy/candleBuilder');
-const { filterSignal } = require('./strategy/signalState');
+const { analyze } = require('./strategy/macd');
+const { openHedge, resolve } = require('./strategy/hedge');
+const { getBalance } = require('./core/api');
 
-server.listen(3000, () => {
-  console.log('🌐 Web running: http://0.0.0.0:3000');
-});
+let mode = 'ANALYZE';
 
-// dummy price (ganti WS nanti)
-setInterval(() => {
-  const price = 72800 + Math.random() * 200;
+// ===== MODE =====
+async function updateMode() {
+  const bal = await getBalance().catch(()=>0);
 
+  if (!bal || bal < 50) mode = 'ANALYZE';
+  else mode = 'TRADE';
+
+  console.log('💰 MODE:', mode, 'BAL:', bal);
+}
+setInterval(updateMode, 10000);
+
+// ===== MAIN FLOW =====
+connect(async (price) => {
+  // realtime tick masuk sini
   const { closed } = buildCandle(price);
   if (!closed) return;
 
-  broadcast({
-    candle: {
-      time: Math.floor(Date.now()/1000),
-      open: closed.open,
-      high: closed.high,
-      low: closed.low,
-      close: closed.close
-    }
-  });
+  const signal = analyze(closed.close);
+  if (!signal) return;
 
-}, 1000);
+  console.log('📊 SIGNAL:', signal, 'PRICE:', closed.close);
+
+  if (mode === 'TRADE') {
+    await openHedge(closed.close);
+    await resolve(signal);
+  }
+});
+
+console.log('🚀 BOT LIVE (REALTIME WS)');
