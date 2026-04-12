@@ -1,55 +1,61 @@
 const WebSocket = require('ws');
 const { analyze } = require('./strategy/macdBb');
 
-const ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
+let ws;
 
-ws.on('open', () => {
-  console.log('✅ WS Connected');
+function connect() {
+  ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
 
-  ws.send(JSON.stringify({
-    op: "subscribe",
-    args: [{
-      instType: "mc",
-      channel: "ticker",
-      instId: "BTCUSDT"
-    }]
-  }));
-});
+  ws.on('open', () => {
+    console.log('✅ WS Connected');
 
-ws.on('message', (msg) => {
-  try {
-    const data = JSON.parse(msg.toString());
+    ws.send(JSON.stringify({
+      op: "subscribe",
+      args: [{
+        instType: "USDT-FUTURES",
+        channel: "ticker",
+        instId: "BTCUSDT"
+      }]
+    }));
+  });
 
-    // DEBUG (lihat isi data)
-    // console.log(data);
+  ws.on('message', (msg) => {
+    try {
+      const data = JSON.parse(msg.toString());
 
-    if (!data.data) return;
+      if (!data.data) return;
 
-    const ticker = data.data[0];
+      const ticker = data.data[0];
 
-    if (!ticker.last) return;
+      if (!ticker.lastPr) return;
 
-    const price = parseFloat(ticker.last);
+      const price = parseFloat(ticker.lastPr);
 
-    console.log('📈 BTCUSDT:', price);
+      console.log('📈 BTCUSDT:', price);
 
-    const signal = analyze(price);
+      const signal = analyze(price);
 
-    if (signal === 'buy') {
-      console.log('🚀 BUY SIGNAL');
+      if (signal === 'buy') {
+        console.log('🚀 BUY SIGNAL');
+      }
+
+      if (signal === 'sell') {
+        console.log('🔥 SELL SIGNAL');
+      }
+
+    } catch (err) {
+      console.log('❌ ERROR:', err.message);
     }
+  });
 
-    if (signal === 'sell') {
-      console.log('🔥 SELL SIGNAL');
-    }
+  ws.on('close', () => {
+    console.log('⚠️ WS Closed → reconnect...');
+    setTimeout(connect, 2000);
+  });
 
-  } catch (err) {
-    console.log('❌ ERROR:', err.message);
-  }
-});
+  ws.on('error', (err) => {
+    console.log('❌ WS Error:', err.message);
+  });
+}
 
-// auto reconnect (biar gak mati)
-ws.on('close', () => {
-  console.log('⚠️ WS Closed → reconnect...');
-  setTimeout(() => process.exit(1), 2000);
-});
+connect();
