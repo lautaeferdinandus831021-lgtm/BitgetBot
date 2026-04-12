@@ -4,22 +4,20 @@ const { WebsocketClientV2 } = require('bitget-api');
 const ws = new WebsocketClientV2();
 
 const SYMBOL = "BTCUSDT";
-const PRODUCT_TYPE = "USDT-FUTURES";
 
-// ✅ SUBSCRIBE BENAR
+// ✅ FIX DI SINI
 ws.subscribeTopic({
   channel: "candle1m",
   instId: SYMBOL,
-  instType: PRODUCT_TYPE,
-});
-
-// LISTENER
-ws.on('update', (msg) => {
-  console.log("DATA:", msg);
+  instType: "USDT-FUTURE", // 🔥 FIX
 });
 
 ws.on('open', () => {
   console.log("🚀 WS CONNECTED");
+});
+
+ws.on('update', (msg) => {
+  console.log("📊 DATA:", msg);
 });
 
 ws.on('error', (err) => {
