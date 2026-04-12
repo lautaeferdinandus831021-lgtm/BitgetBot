@@ -1,34 +1,49 @@
 const WebSocket = require('ws');
 
-let price = null;
-
 function startPriceStream(pair, onUpdate) {
-    const ws = new WebSocket('wss://ws.bitget.com/spot/v1/stream');
+
+    const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public');
 
     ws.on('open', () => {
-        console.log("🟢 WS Connected");
+        console.log("🟢 WS CONNECTED");
 
         ws.send(JSON.stringify({
             op: "subscribe",
             args: [{
-                instType: "SP",
+                instType: "SPOT",
                 channel: "ticker",
                 instId: pair
             }]
         }));
+
+        // heartbeat biar gak putus
+        setInterval(() => {
+            ws.send('ping');
+        }, 20000);
     });
 
     ws.on('message', (msg) => {
-        const data = JSON.parse(msg);
+        try {
+            const json = JSON.parse(msg.toString());
 
-        if (data.data && data.data[0]) {
-            price = parseFloat(data.data[0].last);
-            onUpdate(price);
-        }
+            if (json.data && json.data.length > 0) {
+                const price = parseFloat(json.data[0].lastPr);
+
+                console.log("📡 PRICE:", price);
+
+                onUpdate(price);
+            }
+
+        } catch (e) {}
     });
 
     ws.on('error', (err) => {
-        console.log("WS ERROR:", err.message);
+        console.log("❌ WS ERROR:", err.message);
+    });
+
+    ws.on('close', () => {
+        console.log("🔁 RECONNECT...");
+        setTimeout(() => startPriceStream(pair, onUpdate), 3000);
     });
 }
 

@@ -9,10 +9,11 @@ const PAIR = 'BTCUSDT';
 let prices = [];
 let lastSignal = null;
 
-console.log("🚀 BOT STARTED (REALTIME MODE)");
+console.log("🚀 BOT STARTED (REALTIME)");
 
 startPriceStream(PAIR, async (price) => {
     try {
+
         prices.push(price);
         if (prices.length > 50) prices.shift();
 
@@ -23,13 +24,13 @@ startPriceStream(PAIR, async (price) => {
 
         const balance = await getBalance();
 
-        // ===== ANALYSIS ONLY =====
+        // MODE ANALISA
         if (balance < 100) {
-            console.log("MODE ANALYSIS ONLY");
+            console.log("📊 ANALYSIS ONLY (saldo < 100)");
             return;
         }
 
-        // ===== EXECUTION =====
+        // EXECUTION
         if (signal && signal !== lastSignal) {
             lastSignal = signal;
 
@@ -43,6 +44,6 @@ startPriceStream(PAIR, async (price) => {
         }
 
     } catch (err) {
-        console.log("ERROR:", err.message);
+        console.log("❌ ERROR:", err.message);
     }
 });
