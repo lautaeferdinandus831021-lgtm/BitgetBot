@@ -1,39 +1,48 @@
-require('dotenv').config();
+const WebSocket = require('ws');
+const { analyze } = require('./strategy/macdBb');
 
-const { connect } = require('./core/ws');
-const { buildCandle } = require('./strategy/candleBuilder');
-const { analyze } = require('./strategy/macd');
-const { openHedge, resolve } = require('./strategy/hedge');
-const { getBalance } = require('./core/api');
+const ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
 
-let mode = 'ANALYZE';
+let price = 0;
 
-// ===== MODE =====
-async function updateMode() {
-  const bal = await getBalance().catch(()=>0);
+ws.on('open', () => {
+  console.log('✅ WS Connected');
 
-  if (!bal || bal < 50) mode = 'ANALYZE';
-  else mode = 'TRADE';
+  ws.send(JSON.stringify({
+    op: 'subscribe',
+    args: [{
+      instType: 'mc',
+      channel: 'ticker',
+      instId: 'BTCUSDT'
+    }]
+  }));
+});
 
-  console.log('💰 MODE:', mode, 'BAL:', bal);
-}
-setInterval(updateMode, 10000);
+ws.on('message', (msg) => {
+  try {
+    const json = JSON.parse(msg);
 
-// ===== MAIN FLOW =====
-connect(async (price) => {
-  // realtime tick masuk sini
-  const { closed } = buildCandle(price);
-  if (!closed) return;
+    if (json.data && json.data[0]) {
+      price = parseFloat(json.data[0].last);
 
-  const signal = analyze(closed.close);
-  if (!signal) return;
+      console.log('💰 BTCUSDT:', price);
 
-  console.log('📊 SIGNAL:', signal, 'PRICE:', closed.close);
+      const signal = analyze(price);
 
-  if (mode === 'TRADE') {
-    await openHedge(closed.close);
-    await resolve(signal);
+      if (signal === 'BUY') {
+        console.log('🚀 SIGNAL BUY');
+      }
+
+      if (signal === 'SELL') {
+        console.log('🔥 SIGNAL SELL');
+      }
+    }
+  } catch (e) {
+    console.log('WS error parse');
   }
 });
 
-console.log('🚀 BOT LIVE (REALTIME WS)');
+ws.on('close', () => {
+  console.log('❌ WS Closed → reconnect...');
+  setTimeout(() => process.exit(), 2000);
+});

@@ -1,64 +1,48 @@
-let closes = [];
+const MACD = require('./indicator').MACD;
 
-let prevMacd = null;
-let prevSignal = null;
-
-function ema(period, data) {
-  const k = 2 / (period + 1);
-  let ema = data[0];
-
-  for (let i = 1; i < data.length; i++) {
-    ema = data[i] * k + ema * (1 - k);
-  }
-
-  return ema;
-}
-
-function stddev(data) {
-  const mean = data.reduce((a, b) => a + b) / data.length;
-  const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length;
-  return Math.sqrt(variance);
-}
+let prices = [];
+let lastSignal = null;
+let confirmCount = 0;
 
 function analyze(price) {
-  closes.push(price);
+  prices.push(price);
 
-  // butuh data cukup
-  if (closes.length < 10) return null;
+  if (prices.length < 50) return null;
 
-  const data = closes.slice(-10);
+  const macdFast = MACD(prices, 2, 3, 1);
+  const macdMid  = MACD(prices, 3, 4, 1);
+  const macdSlow = MACD(prices, 4, 5, 1);
 
-  // 🔹 MACD (4,5,1)
-  const emaFast = ema(4, data);
-  const emaSlow = ema(5, data);
-  const macd = emaFast - emaSlow;
-  const signal = macd; // signal=1 (instant)
+  const h1 = macdFast.histogram;
+  const h2 = macdMid.histogram;
+  const h3 = macdSlow.histogram;
 
-  // 🔹 Bollinger (5, dev 2)
-  const sma = data.reduce((a, b) => a + b) / data.length;
-  const sd = stddev(data);
+  // ===== LOGIKA FILTER =====
+  let currentSignal = null;
 
-  const upper = sma + 2 * sd;
-  const lower = sma - 2 * sd;
-
-  let result = null;
-
-  if (prevMacd !== null && prevSignal !== null) {
-    // CROSS UP + BB bawah
-    if (prevMacd < prevSignal && macd > signal && price < lower) {
-      result = 'buy';
-    }
-
-    // CROSS DOWN + BB atas
-    if (prevMacd > prevSignal && macd < signal && price > upper) {
-      result = 'sell';
-    }
+  if (h1 > 0 && h2 > 0 && h3 > 0) {
+    currentSignal = 'BUY';
   }
 
-  prevMacd = macd;
-  prevSignal = signal;
+  if (h1 < 0 && h2 < 0 && h3 < 0) {
+    currentSignal = 'SELL';
+  }
 
-  return result;
+  // ===== DELAY 2 CANDLE CONFIRM =====
+  if (currentSignal === lastSignal) {
+    confirmCount++;
+  } else {
+    confirmCount = 1;
+  }
+
+  lastSignal = currentSignal;
+
+  if (confirmCount >= 2) {
+    confirmCount = 0;
+    return currentSignal;
+  }
+
+  return null;
 }
 
 module.exports = { analyze };
