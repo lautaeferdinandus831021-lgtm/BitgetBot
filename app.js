@@ -1,25 +1,45 @@
-require('dotenv').config();
-const { WebsocketClientV2 } = require('bitget-api');
+import { startWS } from './ws/bitgetWs.js'
+import { build5m } from './utils/candleBuilder.js'
+import { CONFIG } from './config/env.js'
 
-const ws = new WebsocketClientV2();
+import { singleTFStrategy } from './strategy/singleTF.js'
+import { dualTFStrategy, updateTrend } from './strategy/dualTF.js'
 
-const SYMBOL = "BTCUSDT";
+let history1m = []
+let history5m = []
 
-// ✅ FIX DI SINI
-ws.subscribeTopic({
-  channel: "candle1m",
-  instId: SYMBOL,
-  instType: "USDT-FUTURE", // 🔥 FIX
-});
+console.log("🚀 BOT STARTED MODE:", CONFIG.MODE)
 
-ws.on('open', () => {
-  console.log("🚀 WS CONNECTED");
-});
+startWS((candle) => {
 
-ws.on('update', (msg) => {
-  console.log("📊 DATA:", msg);
-});
+  const price = parseFloat(candle[4])
 
-ws.on('error', (err) => {
-  console.log("❌ WS ERROR:", err);
-});
+  history1m.push(price)
+  if (history1m.length > 100) history1m.shift()
+
+  console.log("📈 1M PRICE:", price)
+
+  if (CONFIG.MODE === "SINGLE") {
+    const signal = singleTFStrategy(price)
+    console.log("SIGNAL:", signal)
+  }
+
+  if (CONFIG.MODE === "DUAL") {
+    updateTrend(price, history1m)
+
+    const candle5m = build5m(candle)
+
+    if (candle5m) {
+      const price5m = parseFloat(candle5m[4])
+
+      history5m.push(price5m)
+      if (history5m.length > 100) history5m.shift()
+
+      console.log("🕯️ 5M PRICE:", price5m)
+
+      const signal = dualTFStrategy(price5m, history5m)
+
+      console.log("🔥 SIGNAL:", signal)
+    }
+  }
+})
