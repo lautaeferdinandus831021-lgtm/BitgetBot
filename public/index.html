@@ -25,12 +25,11 @@ const macdChart = LightweightCharts.createChart(document.getElementById('macd'),
 const macdLine = macdChart.addLineSeries({ color: 'blue' })
 const signalLine = macdChart.addLineSeries({ color: 'orange' })
 
-// 🔥 WAJIB WSS
-const ws = new WebSocket(`wss://${location.host}`)
+// 🔥 AUTO PROTOCOL FIX
+const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://'
+const ws = new WebSocket(protocol + location.host)
 
-ws.onopen = () => {
-  console.log('WS FRONTEND CONNECTED')
-}
+ws.onopen = () => console.log('WS CONNECTED')
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data)
@@ -47,9 +46,7 @@ ws.onmessage = (event) => {
   }
 }
 
-ws.onerror = (err) => {
-  console.log('WS ERROR', err)
-}
+ws.onerror = (e) => console.log('WS ERROR', e)
 </script>
 
 </body>

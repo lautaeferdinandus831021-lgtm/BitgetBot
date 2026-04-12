@@ -56,10 +56,11 @@ bitget.on('message', (msg) => {
     })
 
   } catch (e) {
-    console.log('ERROR PARSE', e.message)
+    console.log('ERROR', e.message)
   }
 })
 
-server.listen(3000, () => {
-  console.log('SERVER RUNNING http://localhost:3000')
+// 🔥 PORT 8000
+server.listen(8000, '0.0.0.0', () => {
+  console.log('SERVER RUNNING http://0.0.0.0:8000')
 })
