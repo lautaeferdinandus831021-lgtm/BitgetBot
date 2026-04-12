@@ -1,88 +1,44 @@
-const { buildM1, getM1, getM5 } = require('./candleBuilder');
+const { EMA } = require('technicalindicators');
 
-let closes = [];
-let histArr = [];
-let lastSignalTime = 0;
+let prices = [];
 
-const COOLDOWN = 5 * 60 * 1000;
+function calculateMACD() {
+    if (prices.length < 50) return null;
 
-function ema(period, data) {
-    const k = 2 / (period + 1);
-    let ema = data[0];
+    const ema12 = EMA.calculate({ period: 12, values: prices });
+    const ema26 = EMA.calculate({ period: 26, values: prices });
 
-    for (let i = 1; i < data.length; i++) {
-        ema = data[i] * k + ema * (1 - k);
-    }
+    const macdLine = ema12.slice(-ema26.length).map((v, i) => v - ema26[i]);
+    const signalLine = EMA.calculate({ period: 9, values: macdLine });
 
-    return ema;
+    const hist = macdLine.slice(-signalLine.length).map((v, i) => v - signalLine[i]);
+
+    return {
+        macd: macdLine.slice(-1)[0],
+        signal: signalLine.slice(-1)[0],
+        hist: hist.slice(-1)[0],
+        prevHist: hist.slice(-2)[0]
+    };
 }
 
-function calcMACD() {
-    if (closes.length < 30) return null;
+module.exports = (price) => {
+    prices.push(price);
+    if (prices.length > 200) prices.shift();
 
-    const ema12 = ema(12, closes);
-    const ema26 = ema(26, closes);
-    const macd = ema12 - ema26;
+    const data = calculateMACD();
+    if (!data) return null;
 
-    const signal = ema(9, [...histArr, macd]);
-    const hist = macd - signal;
+    console.log("MACD:", data);
 
-    return hist;
-}
-
-function analyze(price) {
-    const res = buildM1(price);
-
-    if (!res.closed) return;
-
-    const m1 = res.candle;
-    closes.push(m1.close);
-
-    if (closes.length > 100) closes.shift();
-
-    const hist = calcMACD();
-    if (!hist) return;
-
-    histArr.push(hist);
-    if (histArr.length > 50) histArr.shift();
-
-    if (histArr.length < 5) return;
-
-    const h1 = histArr.at(-1);
-    const h2 = histArr.at(-2);
-    const h3 = histArr.at(-3);
-
-    const now = Date.now();
-
-    const bullish =
-        h3 < 0 &&
-        h2 < 0 &&
-        h1 > 0;
-
-    const bearish =
-        h3 > 0 &&
-        h2 > 0 &&
-        h1 < 0;
-
-    if (now - lastSignalTime < COOLDOWN) {
-        console.log("⏳ Cooldown...");
-        return;
+    // BUY
+    if (data.hist > 0 && data.prevHist < 0) {
+        return { name: 'macd', signal: 'BUY' };
     }
 
-    const m5 = getM5();
-
-    console.log("🕯️ M1:", m1);
-    console.log("📊 M5:", m5);
-
-    if (bullish) {
-        console.log("🚀 BUY SIGNAL (REAL MACD)");
-        lastSignalTime = now;
+    // SELL
+    if (data.hist < 0 && data.prevHist > 0) {
+        return { name: 'macd', signal: 'SELL' };
     }
 
-    if (bearish) {
-        console.log("🔻 SELL SIGNAL (REAL MACD)");
-        lastSignalTime = now;
-    }
-}
-
-module.exports = { analyze };
+    return null;
+};
