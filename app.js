@@ -1,11 +1,10 @@
-const { analyze } = require('./strategy/macd'); // ganti ke macd saja
-
 const WebSocket = require('ws');
+const { analyze } = require('./logic/signalRouter');
 
-const ws = new WebSocket("wss://ws.bitget.com/v2/ws/public");
+const ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
 
 ws.on('open', () => {
-    console.log("✅ WS Connected");
+    console.log('✅ WS Connected');
 
     ws.send(JSON.stringify({
         op: "subscribe",
@@ -18,12 +17,11 @@ ws.on('open', () => {
 });
 
 ws.on('message', (msg) => {
-    const data = JSON.parse(msg.toString());
+    const data = JSON.parse(msg);
 
-    if (data.data) {
-        const price = data.data[0].lastPr;
+    if (data.data && data.data[0]) {
+        const price = parseFloat(data.data[0].last);
         console.log("📈 PRICE:", price);
-
         analyze(price);
     }
 });
