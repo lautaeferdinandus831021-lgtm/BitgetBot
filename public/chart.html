@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bitget Chart</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <h3>🔥 BTCUSDT M1 + M5</h3>
+  <div id="chart" style="height:400px"></div>
+
+  <script>
+    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+      width: window.innerWidth,
+      height: 400
+    })
+
+    const candleSeries = chart.addCandlestickSeries()
+
+    const ws = new WebSocket("ws://" + location.host)
+
+    ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data)
+
+      candleSeries.update({
+        time: data.time,
+        open: data.open,
+        high: data.high,
+        low: data.low,
+        close: data.close
+      })
+    }
+  </script>
+</body>
+</html>
