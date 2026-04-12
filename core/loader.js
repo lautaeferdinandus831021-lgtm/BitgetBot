@@ -1,19 +1,31 @@
 const fs = require('fs');
 const path = require('path');
 
-function loadStrategies(dir) {
-    const fullPath = path.join(__dirname, '..', dir);
-    if (!fs.existsSync(fullPath)) return [];
+function loadFolder(folder) {
+    let modules = {};
+    const dir = path.join(__dirname, '../modules', folder);
 
-    return fs.readdirSync(fullPath)
-        .filter(f => f.endsWith('.js'))
-        .map(f => require(path.join(fullPath, f)));
+    if (!fs.existsSync(dir)) return modules;
+
+    fs.readdirSync(dir).forEach(file => {
+        if (file.endsWith('.js')) {
+            const name = file.replace('.js', '');
+            modules[name] = require(path.join(dir, file));
+            console.log('✅ Loaded', folder, name);
+        }
+    });
+
+    return modules;
 }
 
 module.exports = {
-    loadAll: () => ({
-        single: loadStrategies('strategy/single_tf'),
-        dual: loadStrategies('strategy/dual_tf'),
-        multi: loadStrategies('strategy/multi_tf')
-    })
+    indicator: loadFolder('indicator'),
+    risk: loadFolder('risk'),
+    order: loadFolder('order'),
+
+    strategy: {
+        singleTF: loadFolder('strategy/singleTF'),
+        dualTF: loadFolder('strategy/dualTF'),
+        multiTF: loadFolder('strategy/multiTF')
+    }
 };
