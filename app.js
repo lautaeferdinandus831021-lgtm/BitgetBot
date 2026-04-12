@@ -1,56 +1,48 @@
 require('dotenv').config();
 
-const getPrice = require('./ws/price');
-const { placeOrder } = require('./ws/execution');
+const { startPriceStream } = require('./market/price');
 const strategy = require('./strategy/macd');
+const { placeOrder, getBalance } = require('./exchange/execution');
 
 const PAIR = 'BTCUSDT';
-const SIZE = 0.001;
 
 let prices = [];
+let lastSignal = null;
 
-console.log("🚀 BOT STARTED (MACD MODE)");
+console.log("🚀 BOT STARTED (REALTIME MODE)");
 
-setInterval(async () => {
-    const price = await getPrice(PAIR);
+startPriceStream(PAIR, async (price) => {
+    try {
+        prices.push(price);
+        if (prices.length > 50) prices.shift();
 
-    if (!price) return;
+        const signal = strategy(prices);
 
-    console.log("PRICE:", price);
+        console.log("PRICE:", price);
+        console.log("SIGNAL:", signal);
 
-    // simpan data untuk MACD
-    prices.push(price);
-    if (prices.length > 50) prices.shift();
+        const balance = await getBalance();
 
-    // tunggu data cukup
-    if (prices.length < 30) return;
+        // ===== ANALYSIS ONLY =====
+        if (balance < 100) {
+            console.log("MODE ANALYSIS ONLY");
+            return;
+        }
 
-    const signal = strategy(prices);
+        // ===== EXECUTION =====
+        if (signal && signal !== lastSignal) {
+            lastSignal = signal;
 
-    console.log("SIGNAL:", signal);
+            console.log("🚨 EXECUTE:", signal);
 
-    // cek saldo (simple logic)
-    const balance = parseFloat(process.env.BALANCE || "0");
+            await placeOrder({
+                pair: PAIR,
+                side: signal.toLowerCase(),
+                size: 0.001
+            });
+        }
 
-    if (balance < 100) {
-        console.log("MODE ANALYSIS ONLY (saldo < 100)");
-        return;
+    } catch (err) {
+        console.log("ERROR:", err.message);
     }
-
-    if (signal === 'BUY') {
-        await placeOrder({
-            pair: PAIR,
-            side: 'buy',
-            size: SIZE
-        });
-    }
-
-    if (signal === 'SELL') {
-        await placeOrder({
-            pair: PAIR,
-            side: 'sell',
-            size: SIZE
-        });
-    }
-
-}, 3000);
+});
