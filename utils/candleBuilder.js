@@ -1,18 +1,34 @@
-let buffer = []
+let current5m = null
 
 export function build5m(candle) {
-  buffer.push(candle)
+  const time = parseInt(candle[0])
+  const open = parseFloat(candle[1])
+  const high = parseFloat(candle[2])
+  const low = parseFloat(candle[3])
+  const close = parseFloat(candle[4])
 
-  if (buffer.length < 5) return null
+  // round ke 5 menit
+  const bucket = Math.floor(time / 300000) * 300000
 
-  const open = parseFloat(buffer[0][1])
-  const close = parseFloat(buffer[4][4])
-  const high = Math.max(...buffer.map(c => parseFloat(c[2])))
-  const low = Math.min(...buffer.map(c => parseFloat(c[3])))
+  // candle baru
+  if (!current5m || current5m.time !== bucket) {
+    const finished = current5m
 
-  const result = [Date.now(), open, high, low, close]
+    current5m = {
+      time: bucket,
+      open,
+      high,
+      low,
+      close
+    }
 
-  buffer = [] // reset
+    return finished
+  }
 
-  return result
+  // update candle berjalan
+  current5m.high = Math.max(current5m.high, high)
+  current5m.low = Math.min(current5m.low, low)
+  current5m.close = close
+
+  return null
 }
