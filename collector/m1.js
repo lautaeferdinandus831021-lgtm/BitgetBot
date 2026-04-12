@@ -1,10 +1,13 @@
-let m1 = []
+const candles = []
 
-export function pushM1(price) {
-  m1.push(price)
-  if (m1.length > 100) m1.shift()
+function onM1Candle(candle) {
+  candles.push(candle)
+
+  if (candles.length > 100) candles.shift()
+
+  return candles
 }
 
-export function getM1() {
-  return m1
+module.exports = {
+  onM1Candle
 }

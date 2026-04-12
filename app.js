@@ -1,34 +1,16 @@
-import { startWS } from './ws/bitgetWs.js'
-import { pushM1, getM1 } from './collector/m1.js'
-import { pushM5, getM5 } from './collector/m5.js'
-import { dualTFStrategy } from './strategy/dualTF.js'
+const runDualTF = require('./strategy/dualTF')
+const { onM1Candle } = require('./collector/m1')
+const { onM5Candle } = require('./collector/m5')
 
-console.log("🚀 BOT STARTED: DUAL TF (M1 + M5)")
+// SIMULASI DATA MASUK
+setInterval(() => {
+  const fakeM1 = { close: Math.random() * 100 }
+  const fakeM5 = { close: Math.random() * 100 }
 
-startWS(
+  const m1Data = onM1Candle(fakeM1)
+  const m5Data = onM5Candle(fakeM5)
 
-  // M1
-  (candle) => {
-    const price = parseFloat(candle[4])
-    if (!price) return
+  runDualTF(m1Data, m5Data)
+}, 1000)
 
-    pushM1(price)
-
-    console.log("📈 M1:", price)
-  },
-
-  // M5
-  (candle) => {
-    const price = parseFloat(candle[4])
-    if (!price) return
-
-    pushM5(price)
-
-    console.log("🕯️ M5:", price)
-
-    const signal = dualTFStrategy(getM1(), getM5())
-
-    console.log("🔥 SIGNAL:", signal)
-  }
-
-)
+console.log('🚀 BOT RUNNING DUAL TF...')

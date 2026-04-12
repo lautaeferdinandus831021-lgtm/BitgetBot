@@ -1,21 +1,27 @@
-import { macd } from '../indicators/macd/macd.js'
+const macd = require('../indicators/macd/macd')
 
-export function dualTFStrategy(m1, m5) {
-  const tf1 = macd(m1)
-  const tf5 = macd(m5)
+function runDualTF(m1Candles, m5Candles) {
+  if (m1Candles.length < 10 || m5Candles.length < 10) return
 
-  if (!tf1 || !tf5) return "WAIT"
+  const m1Close = m1Candles.map(c => c.close)
+  const m5Close = m5Candles.map(c => c.close)
 
-  console.log("M1:", tf1)
-  console.log("M5:", tf5)
+  const m1Macd = macd(m1Close)
+  const m5Macd = macd(m5Close)
 
-  if (tf1.hist > 0 && tf5.hist > 0 && tf5.macd > tf5.signal) {
-    return "BUY"
+  if (!m1Macd || !m5Macd) return
+
+  // LOGIC:
+  // M1 = filter entry
+  // M5 = confirm eksekusi
+
+  if (m1Macd.hist > 0 && m5Macd.hist > 0) {
+    console.log('🔥 BUY SIGNAL (M1 + M5 CONFIRM)')
   }
 
-  if (tf1.hist < 0 && tf5.hist < 0 && tf5.macd < tf5.signal) {
-    return "SELL"
+  if (m1Macd.hist < 0 && m5Macd.hist < 0) {
+    console.log('❄️ SELL SIGNAL (M1 + M5 CONFIRM)')
   }
-
-  return "WAIT"
 }
+
+module.exports = runDualTF
