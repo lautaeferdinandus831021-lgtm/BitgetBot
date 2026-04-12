@@ -1,14 +1,14 @@
 require('dotenv').config();
-const { RestClientV2 } = require('bitget-api');
+const { WebsocketClient, RestClientV2 } = require('bitget-api');
 const { EMA, RSI, MACD } = require('technicalindicators');
 
 // CONFIG
 const SYMBOL = process.env.SYMBOL;
 const PRODUCT_TYPE = process.env.PRODUCT_TYPE;
-const SIZE = process.env.SIZE;
 
 // INIT CLIENT
-const client = new RestClientV2({
+const ws = new WebsocketClient();
+const rest = new RestClientV2({
   apiKey: process.env.API_KEY,
   apiSecret: process.env.API_SECRET,
   apiPass: process.env.PASSPHRASE,
@@ -17,40 +17,25 @@ const client = new RestClientV2({
 // STATE
 let prices = [];
 
-// GET MARKET DATA
-async function getCandles() {
-  const res = await client.getFuturesCandles({
-    symbol: SYMBOL,
-    productType: PRODUCT_TYPE,
-    granularity: '1m',
-    limit: '100'
-  });
+// STREAM PRICE
+ws.subscribeTopic('mc', `ticker:${SYMBOL}`);
 
-  return res.data.map(c => parseFloat(c[4])); // close price
-}
+ws.on('update', (data) => {
+  if (data?.data?.[0]?.last) {
+    const price = parseFloat(data.data[0].last);
+    prices.push(price);
 
-// GET BALANCE
-async function getBalance() {
-  try {
-    const res = await client.getFuturesAccountAssets({
-      productType: PRODUCT_TYPE,
-    });
+    if (prices.length > 100) prices.shift();
 
-    const usdt = res.data.find(a => a.marginCoin === 'USDT');
-    return parseFloat(usdt.available);
-  } catch (e) {
-    console.log("❌ BALANCE ERROR:", e.body || e.message);
-    return 0;
+    runAnalysis();
   }
-}
+});
 
-// ANALYSIS
-function analyze(prices) {
-  if (prices.length < 30) return null;
+// ANALYSIS FUNCTION
+function runAnalysis() {
+  if (prices.length < 30) return;
 
   const ema5 = EMA.calculate({ period: 5, values: prices });
-  const emaTrend = ema5[ema5.length - 1];
-
   const rsi4 = RSI.calculate({ period: 4, values: prices });
   const rsi5 = RSI.calculate({ period: 5, values: prices });
   const rsi25 = RSI.calculate({ period: 25, values: prices });
@@ -60,94 +45,54 @@ function analyze(prices) {
     fastPeriod: 4,
     slowPeriod: 5,
     signalPeriod: 3,
-    SimpleMAOscillator: false,
-    SimpleMASignal: false
   });
 
-  const lastMACD = macd[macd.length - 1];
-  const prevMACD = macd[macd.length - 2];
+  const last = macd[macd.length - 1];
+  const prev = macd[macd.length - 2];
 
   const price = prices[prices.length - 1];
-
-  // SIGNAL
   let signal = null;
 
-  const bullishCross = prevMACD.MACD < prevMACD.signal && lastMACD.MACD > lastMACD.signal;
-  const bearishCross = prevMACD.MACD > prevMACD.signal && lastMACD.MACD < lastMACD.signal;
+  const bullish = prev.MACD < prev.signal && last.MACD > last.signal;
+  const bearish = prev.MACD > prev.signal && last.MACD < last.signal;
 
   if (
-    bullishCross &&
-    rsi4[rsi4.length - 1] > 50 &&
-    rsi5[rsi5.length - 1] > 50 &&
-    price > emaTrend
+    bullish &&
+    rsi4.at(-1) > 50 &&
+    rsi5.at(-1) > 50 &&
+    price > ema5.at(-1)
   ) {
     signal = "BUY";
   }
 
   if (
-    bearishCross &&
-    rsi4[rsi4.length - 1] < 50 &&
-    rsi5[rsi5.length - 1] < 50 &&
-    price < emaTrend
+    bearish &&
+    rsi4.at(-1) < 50 &&
+    rsi5.at(-1) < 50 &&
+    price < ema5.at(-1)
   ) {
     signal = "SELL";
   }
 
-  return { signal, price };
+  console.log("PRICE:", price);
+  console.log("SIGNAL:", signal);
 }
 
-// EXECUTE ORDER
-async function execute(signal) {
+// PRIVATE API CHECK (BALANCE)
+async function checkBalance() {
   try {
-    const side = signal === "BUY" ? "buy" : "sell";
-
-    const res = await client.submitOrder({
-      symbol: SYMBOL,
+    const res = await rest.getFuturesAccountAssets({
       productType: PRODUCT_TYPE,
-      marginMode: "crossed",
-      marginCoin: "USDT",
-      size: SIZE,
-      side: side,
-      orderType: "market",
     });
 
-    console.log("✅ ORDER:", signal, res.data);
+    const usdt = res.data.find(x => x.marginCoin === "USDT");
+    console.log("BALANCE:", usdt?.available);
   } catch (e) {
-    console.log("❌ ORDER ERROR:", e.body || e.message);
+    console.log("API ERROR:", e.body || e.message);
   }
 }
 
-// MAIN LOOP
-async function run() {
-  console.log("🚀 BOT STARTED (REALTIME)");
+// LOOP PRIVATE CHECK
+setInterval(checkBalance, 15000);
 
-  setInterval(async () => {
-    try {
-      prices = await getCandles();
-
-      const result = analyze(prices);
-      if (!result) return;
-
-      const { signal, price } = result;
-
-      console.log("PRICE:", price);
-      console.log("SIGNAL:", signal);
-
-      const balance = await getBalance();
-
-      if (balance < 10) {
-        console.log("⚠️ ANALYSIS ONLY (saldo < 10)");
-        return;
-      }
-
-      if (signal) {
-        await execute(signal);
-      }
-
-    } catch (e) {
-      console.log("❌ ERROR:", e.message);
-    }
-  }, 5000);
-}
-
-run();
+console.log("🚀 ANALYSIS MODE (REALTIME STREAM)");
