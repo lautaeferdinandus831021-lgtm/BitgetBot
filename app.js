@@ -3,46 +3,40 @@ const { analyze } = require('./strategy/macdBb');
 
 const ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
 
-let price = 0;
-
 ws.on('open', () => {
-  console.log('✅ WS Connected');
+  console.log('WS Connected');
 
   ws.send(JSON.stringify({
-    op: 'subscribe',
+    op: "subscribe",
     args: [{
-      instType: 'mc',
-      channel: 'ticker',
-      instId: 'BTCUSDT'
+      instType: "mc",
+      channel: "ticker",
+      instId: "BTCUSDT"
     }]
   }));
 });
 
 ws.on('message', (msg) => {
   try {
-    const json = JSON.parse(msg);
+    const json = JSON.parse(msg.toString());
 
-    if (json.data && json.data[0]) {
-      price = parseFloat(json.data[0].last);
+    if (!json.data) return;
 
-      console.log('💰 BTCUSDT:', price);
+    const price = parseFloat(json.data[0].last);
 
-      const signal = analyze(price);
+    console.log('BTCUSDT PRICE:', price);
 
-      if (signal === 'BUY') {
-        console.log('🚀 SIGNAL BUY');
-      }
+    const signal = analyze(price);
 
-      if (signal === 'SELL') {
-        console.log('🔥 SIGNAL SELL');
-      }
+    if (signal === 'buy') {
+      console.log('🚀 BUY SIGNAL');
     }
-  } catch (e) {
-    console.log('WS error parse');
-  }
-});
 
-ws.on('close', () => {
-  console.log('❌ WS Closed → reconnect...');
-  setTimeout(() => process.exit(), 2000);
+    if (signal === 'sell') {
+      console.log('🔥 SELL SIGNAL');
+    }
+
+  } catch (e) {
+    console.log('ERROR:', e.message);
+  }
 });
