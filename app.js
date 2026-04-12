@@ -1,98 +1,96 @@
 require('dotenv').config();
-const { WebsocketClient, RestClientV2 } = require('bitget-api');
+const { WebsocketClient } = require('bitget-api');
 const { EMA, RSI, MACD } = require('technicalindicators');
 
-// CONFIG
-const SYMBOL = process.env.SYMBOL;
-const PRODUCT_TYPE = process.env.PRODUCT_TYPE;
-
-// INIT CLIENT
 const ws = new WebsocketClient();
-const rest = new RestClientV2({
-  apiKey: process.env.API_KEY,
-  apiSecret: process.env.API_SECRET,
-  apiPass: process.env.PASSPHRASE,
-});
 
-// STATE
-let prices = [];
+// ===== STATE =====
+let candles1m = [];
+let candles5m = [];
+let buffer = [];
 
-// STREAM PRICE
-ws.subscribeTopic('mc', `ticker:${SYMBOL}`);
+// ===== BUILD 5M CANDLE FROM 1M =====
+function build5m(candle) {
+  buffer.push(candle);
 
-ws.on('update', (data) => {
-  if (data?.data?.[0]?.last) {
-    const price = parseFloat(data.data[0].last);
-    prices.push(price);
+  if (buffer.length === 5) {
+    const open = buffer[0].open;
+    const close = buffer[4].close;
+    const high = Math.max(...buffer.map(c => c.high));
+    const low = Math.min(...buffer.map(c => c.low));
 
-    if (prices.length > 100) prices.shift();
+    candles5m.push({ open, high, low, close });
 
-    runAnalysis();
+    console.log("🕯️ NEW 5M:", { open, high, low, close });
+
+    buffer = [];
   }
-});
+}
 
-// ANALYSIS FUNCTION
-function runAnalysis() {
-  if (prices.length < 30) return;
+// ===== ANALYSIS =====
+function analyze() {
+  if (candles1m.length < 30 || candles5m.length < 10) return;
 
-  const ema5 = EMA.calculate({ period: 5, values: prices });
-  const rsi4 = RSI.calculate({ period: 4, values: prices });
-  const rsi5 = RSI.calculate({ period: 5, values: prices });
-  const rsi25 = RSI.calculate({ period: 25, values: prices });
+  // ===== 1M TREND =====
+  const prices1m = candles1m.map(c => c.close);
+
+  const ema1m = EMA.calculate({ period: 5, values: prices1m });
+  const rsi1m = RSI.calculate({ period: 5, values: prices1m });
+
+  const trendUp = prices1m.at(-1) > ema1m.at(-1);
+  const trendDown = prices1m.at(-1) < ema1m.at(-1);
+
+  // ===== 5M ENTRY =====
+  const prices5m = candles5m.map(c => c.close);
 
   const macd = MACD.calculate({
-    values: prices,
+    values: prices5m,
     fastPeriod: 4,
     slowPeriod: 5,
     signalPeriod: 3,
   });
 
-  const last = macd[macd.length - 1];
-  const prev = macd[macd.length - 2];
+  if (macd.length < 2) return;
 
-  const price = prices[prices.length - 1];
+  const prev = macd.at(-2);
+  const curr = macd.at(-1);
+
   let signal = null;
 
-  const bullish = prev.MACD < prev.signal && last.MACD > last.signal;
-  const bearish = prev.MACD > prev.signal && last.MACD < last.signal;
+  const bullish = prev.MACD < prev.signal && curr.MACD > curr.signal;
+  const bearish = prev.MACD > prev.signal && curr.MACD < curr.signal;
 
-  if (
-    bullish &&
-    rsi4.at(-1) > 50 &&
-    rsi5.at(-1) > 50 &&
-    price > ema5.at(-1)
-  ) {
+  if (trendUp && bullish && rsi1m.at(-1) > 50) {
     signal = "BUY";
   }
 
-  if (
-    bearish &&
-    rsi4.at(-1) < 50 &&
-    rsi5.at(-1) < 50 &&
-    price < ema5.at(-1)
-  ) {
+  if (trendDown && bearish && rsi1m.at(-1) < 50) {
     signal = "SELL";
   }
 
-  console.log("PRICE:", price);
-  console.log("SIGNAL:", signal);
+  console.log("📊 1M TREND:", trendUp ? "UP" : "DOWN");
+  console.log("📈 5M SIGNAL:", signal);
 }
 
-// PRIVATE API CHECK (BALANCE)
-async function checkBalance() {
-  try {
-    const res = await rest.getFuturesAccountAssets({
-      productType: PRODUCT_TYPE,
-    });
+// ===== STREAM 1M CANDLE =====
+ws.subscribeTopic('mc', 'candle1m:BTCUSDT');
 
-    const usdt = res.data.find(x => x.marginCoin === "USDT");
-    console.log("BALANCE:", usdt?.available);
-  } catch (e) {
-    console.log("API ERROR:", e.body || e.message);
-  }
-}
+ws.on('update', (msg) => {
+  const data = msg?.data?.[0];
+  if (!data) return;
 
-// LOOP PRIVATE CHECK
-setInterval(checkBalance, 15000);
+  const candle = {
+    open: parseFloat(data.open),
+    high: parseFloat(data.high),
+    low: parseFloat(data.low),
+    close: parseFloat(data.close),
+  };
 
-console.log("🚀 ANALYSIS MODE (REALTIME STREAM)");
+  candles1m.push(candle);
+  if (candles1m.length > 100) candles1m.shift();
+
+  build5m(candle);
+  analyze();
+});
+
+console.log("🚀 MTF REAL (1m→5m builder)");
