@@ -23,16 +23,16 @@ export function startWS(onCandle) {
     try {
       const res = JSON.parse(msg.toString())
 
-      if (res?.data) {
-        const candle = res.data[res.data.length - 1]
+      if (!res?.data) return
 
-        if (candle) {
-          onCandle(candle)
-        }
-      }
+      const candle = res.data[res.data.length - 1]
+
+      if (!candle) return
+
+      onCandle(candle)
 
     } catch (err) {
-      console.log("Parse error:", err.message)
+      console.log("❌ Parse error:", err.message)
     }
   })
 

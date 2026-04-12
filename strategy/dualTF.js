@@ -1,19 +1,21 @@
-import { EMA, RSI } from '../indicators/index.js'
-
 let trend = null
 
-export function updateTrend(price1m, history) {
-  const ema = EMA(history, 9).slice(-1)[0]
+export function updateTrend(price, history1m) {
+  if (history1m.length < 10) return
 
-  if (price1m > ema) trend = "UP"
-  else trend = "DOWN"
+  const avg =
+    history1m.slice(-10).reduce((a, b) => a + b, 0) / 10
+
+  trend = price > avg ? "UP" : "DOWN"
+
+  console.log("📊 TREND:", trend)
 }
 
-export function dualTFStrategy(price5m, history) {
-  const rsi = RSI(history, 14)
+export function dualTFStrategy(price5m, history5m) {
+  if (!trend) return "WAIT"
 
-  if (trend === "UP" && rsi > 50) return "BUY"
-  if (trend === "DOWN" && rsi < 50) return "SELL"
+  if (trend === "UP") return "BUY"
+  if (trend === "DOWN") return "SELL"
 
-  return null
+  return "WAIT"
 }

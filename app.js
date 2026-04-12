@@ -11,13 +11,14 @@ let history5m = []
 console.log("🚀 BOT STARTED MODE:", CONFIG.MODE)
 
 startWS((candle) => {
-
   const price = parseFloat(candle[4])
+
+  if (!price) return
 
   history1m.push(price)
   if (history1m.length > 100) history1m.shift()
 
-  console.log("📈 1M PRICE:", price)
+  console.log("📈 1M:", price)
 
   if (CONFIG.MODE === "SINGLE") {
     const signal = singleTFStrategy(price)
@@ -35,7 +36,7 @@ startWS((candle) => {
       history5m.push(price5m)
       if (history5m.length > 100) history5m.shift()
 
-      console.log("🕯️ 5M PRICE:", price5m)
+      console.log("🕯️ 5M:", price5m)
 
       const signal = dualTFStrategy(price5m, history5m)
 
