@@ -1,2 +1,0 @@
-# BitgetBot
-Bot
