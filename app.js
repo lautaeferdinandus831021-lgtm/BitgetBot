@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const { analyze } = require('./strategy/macdBb');
 const { buildCandle, getCandles } = require('./core/candleBuilder');
+const { buildM5 } = require('./core/m5Builder');
 
 let ws;
 
@@ -23,7 +24,6 @@ function connect() {
   ws.on('message', (msg) => {
     try {
       const data = JSON.parse(msg.toString());
-
       if (!data.data) return;
 
       const ticker = data.data[0];
@@ -31,27 +31,32 @@ function connect() {
 
       const price = parseFloat(ticker.lastPr);
 
-      // ✅ tampilkan realtime
       console.log('📈 PRICE:', price);
 
       const result = buildCandle(price);
 
-      // ✅ hanya saat candle close
       if (result.closed) {
-        const candles = getCandles();
+        const m1 = getCandles();
 
-        if (candles.length < 10) return;
+        if (m1.length < 10) return;
 
-        console.log('🕯️ NEW CANDLE:', candles[candles.length - 1]);
+        const m5 = buildM5(m1);
 
-        const signal = analyze(candles);
+        console.log('🕯️ M1 CLOSE:', m1[m1.length - 1]);
+
+        if (m5) {
+          console.log('📊 M5 ROLLING:', m5);
+        }
+
+        // 🔥 ANALISA MULTI TF
+        const signal = analyze(m1, m5);
 
         if (signal === 'buy') {
-          console.log('🚀 BUY SIGNAL (VALID)');
+          console.log('🚀 BUY SIGNAL (M1+M5 CONFIRM)');
         }
 
         if (signal === 'sell') {
-          console.log('🔥 SELL SIGNAL (VALID)');
+          console.log('🔥 SELL SIGNAL (M1+M5 CONFIRM)');
         }
       }
 
