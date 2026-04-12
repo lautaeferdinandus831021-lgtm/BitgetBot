@@ -1,13 +1,9 @@
 const candles = []
 
-function onM1Candle(candle) {
+function pushM1(candle) {
   candles.push(candle)
-
-  if (candles.length > 100) candles.shift()
-
+  if (candles.length > 200) candles.shift()
   return candles
 }
 
-module.exports = {
-  onM1Candle
-}
+module.exports = { pushM1 }

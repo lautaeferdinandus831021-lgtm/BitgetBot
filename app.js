@@ -1,16 +1,20 @@
+const { pushM1 } = require('./collector/m1')
+const { buildM5 } = require('./collector/m5')
 const runDualTF = require('./strategy/dualTF')
-const { onM1Candle } = require('./collector/m1')
-const { onM5Candle } = require('./collector/m5')
 
-// SIMULASI DATA MASUK
+console.log('🚀 BOT STARTED (DUAL TF)')
+
 setInterval(() => {
-  const fakeM1 = { close: Math.random() * 100 }
-  const fakeM5 = { close: Math.random() * 100 }
+  // simulasi candle M1
+  const candle = {
+    open: Math.random() * 100,
+    high: Math.random() * 100,
+    low: Math.random() * 100,
+    close: Math.random() * 100
+  }
 
-  const m1Data = onM1Candle(fakeM1)
-  const m5Data = onM5Candle(fakeM5)
+  const m1 = pushM1(candle)
+  const m5 = buildM5(candle)
 
-  runDualTF(m1Data, m5Data)
+  runDualTF(m1, m5)
 }, 1000)
-
-console.log('🚀 BOT RUNNING DUAL TF...')
