@@ -3,28 +3,28 @@ const { loadStrategies } = require('./strategyLoader');
 const strategies = loadStrategies();
 
 function analyze(price) {
-    let signals = [];
+    const signals = [];
 
-    strategies.forEach((strat) => {
+    for (const strat of strategies) {
         try {
-            if (!strat.run) return;
-
             const result = strat.run(price);
 
             if (result) {
                 signals.push({
-                    name: strat.name || 'unknown',
+                    name: strat.name,
                     signal: result
                 });
             }
         } catch (err) {
-            console.log('❌ Error strategy:', strat.name || 'unknown');
+            console.log('⚠️ Error strategy:', strat.name);
         }
-    });
+    }
 
     if (signals.length > 0) {
         console.log('🚀 SIGNAL:', signals);
     }
+
+    return signals;
 }
 
 module.exports = { analyze };

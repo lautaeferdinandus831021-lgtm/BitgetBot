@@ -1,0 +1,16 @@
+{
+  "mode": "spot",
+  "pair": "BTCUSDT",
+  "timeframe": "1m",
+
+  "strategy": "test",
+
+  "orderType": "market",
+  "size": 0.001,
+
+  "risk": {
+    "stopLoss": 2,
+    "takeProfit": 4,
+    "trailing": true
+  }
+}
