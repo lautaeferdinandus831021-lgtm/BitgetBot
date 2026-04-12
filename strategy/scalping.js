@@ -1,44 +1,32 @@
-const { getPrice } = require('../exchange/price');
-const { getBalance } = require('../exchange/account');
-const { placeOrder } = require('../exchange/order');
+const { getPrice } = require('../exchange/market');
+const { placeOrder } = require('../exchange/execution');
 
-async function run() {
-  const symbol = 'BTCUSDT';
+async function runStrategy() {
+  const price = await getPrice();
 
-  const price = await getPrice(symbol);
   if (!price) return;
 
-  console.log('📊 PRICE:', price);
+  console.log('PRICE:', price);
 
-  const balanceData = await getBalance();
-  if (!balanceData) return;
+  // simple scalping logic
+  const signal = Math.random() > 0.5 ? 'buy' : 'sell';
 
-  const usdt = parseFloat(
-    balanceData.data.find(a => a.coin === 'USDT')?.available || 0
-  );
+  console.log('SIGNAL:', signal);
 
-  console.log('💰 SALDO USDT:', usdt);
+  const balance = parseFloat(process.env.BALANCE || 0);
 
-  // === MODE ANALISA ===
-  if (usdt < 100) {
-    console.log('🔍 MODE ANALISA (saldo < 100)');
+  if (balance < 100) {
+    console.log('MODE ANALYSIS ONLY (saldo < 100)');
     return;
   }
 
-  // === AUTO TRADE ===
-  console.log('🚀 AUTO TRADE AKTIF');
+  console.log('AUTO TRADE ACTIVE 🚀');
 
-  const signal = Math.random() > 0.5 ? 'buy' : 'sell';
-
-  console.log('📈 SIGNAL:', signal);
-
-  const order = await placeOrder({
-    symbol,
+  await placeOrder({
+    symbol: 'BTCUSDT',
     side: signal,
     size: '0.001'
   });
-
-  console.log('📦 ORDER RESULT:', order);
 }
 
-module.exports = { run };
+module.exports = { runStrategy };

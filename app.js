@@ -1,7 +1,13 @@
 require('dotenv').config();
 
-const { run } = require('./strategy/scalping');
+const { runStrategy } = require('./strategy/scalping');
 
-setInterval(async () => {
-  await run();
-}, 5000);
+async function main() {
+  console.log('🚀 BOT START');
+
+  setInterval(async () => {
+    await runStrategy();
+  }, 5000);
+}
+
+main();
