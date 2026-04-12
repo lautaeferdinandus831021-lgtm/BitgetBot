@@ -1,35 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Bitget Chart</title>
-  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<meta charset="UTF-8">
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
-  <h3>🔥 BTCUSDT M1 + M5</h3>
-  <div id="chart" style="height:400px"></div>
 
-  <script>
-    const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-      width: window.innerWidth,
-      height: 400
-    })
+<h3>🔥 BTCUSDT</h3>
+<div id="chart" style="height:400px"></div>
 
-    const candleSeries = chart.addCandlestickSeries()
+<script>
+const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+  width: window.innerWidth,
+  height: 400
+})
 
-    const ws = new WebSocket("ws://" + location.host)
+const series = chart.addCandlestickSeries()
 
-    ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data)
+// 🔥 WAJIB pakai ini di github.dev
+const ws = new WebSocket("wss://" + location.host)
 
-      candleSeries.update({
-        time: data.time,
-        open: data.open,
-        high: data.high,
-        low: data.low,
-        close: data.close
-      })
-    }
-  </script>
+ws.onopen = () => console.log("WS FRONT CONNECTED")
+
+ws.onmessage = (msg) => {
+  console.log("DATA FRONT:", msg.data)
+
+  const d = JSON.parse(msg.data)
+
+  series.update({
+    time: d.time,
+    open: d.open,
+    high: d.high,
+    low: d.low,
+    close: d.close
+  })
+}
+</script>
+
 </body>
 </html>
