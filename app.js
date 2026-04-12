@@ -4,7 +4,7 @@ const { analyze } = require('./strategy/macdBb');
 const ws = new WebSocket('wss://ws.bitget.com/mix/v1/stream');
 
 ws.on('open', () => {
-  console.log('WS Connected');
+  console.log('✅ WS Connected');
 
   ws.send(JSON.stringify({
     op: "subscribe",
@@ -18,13 +18,20 @@ ws.on('open', () => {
 
 ws.on('message', (msg) => {
   try {
-    const json = JSON.parse(msg.toString());
+    const data = JSON.parse(msg.toString());
 
-    if (!json.data) return;
+    // DEBUG (lihat isi data)
+    // console.log(data);
 
-    const price = parseFloat(json.data[0].last);
+    if (!data.data) return;
 
-    console.log('BTCUSDT PRICE:', price);
+    const ticker = data.data[0];
+
+    if (!ticker.last) return;
+
+    const price = parseFloat(ticker.last);
+
+    console.log('📈 BTCUSDT:', price);
 
     const signal = analyze(price);
 
@@ -36,7 +43,13 @@ ws.on('message', (msg) => {
       console.log('🔥 SELL SIGNAL');
     }
 
-  } catch (e) {
-    console.log('ERROR:', e.message);
+  } catch (err) {
+    console.log('❌ ERROR:', err.message);
   }
+});
+
+// auto reconnect (biar gak mati)
+ws.on('close', () => {
+  console.log('⚠️ WS Closed → reconnect...');
+  setTimeout(() => process.exit(1), 2000);
 });
