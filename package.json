@@ -8,5 +8,18 @@
   "dependencies": {
     "express": "^5.2.1",
     "ws": "^8.20.0"
-  }
+  },
+  "description": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lautaeferdinandus831021-lgtm/BitgetBot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/lautaeferdinandus831021-lgtm/BitgetBot/issues"
+  },
+  "homepage": "https://github.com/lautaeferdinandus831021-lgtm/BitgetBot#readme"
 }

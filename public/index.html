@@ -1,33 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BTCUSDT M1 + M5</title>
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  <title>BTCUSDT PRO</title>
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 </head>
-<body style="margin:0;background:#111;color:white;">
+<body style="margin:0;background:#000">
 
-<h2 style="padding:10px;">🔥 BTCUSDT LIVE</h2>
+<h3 style="color:white">🔥 BTCUSDT M1 + M5 + MACD</h3>
 
-<div id="chart" style="height:500px;"></div>
+<div id="chart" style="height:300px"></div>
+<div id="macd" style="height:200px"></div>
 
 <script>
 const chart = LightweightCharts.createChart(document.getElementById('chart'), {
-    width: window.innerWidth,
-    height: 500,
-    layout: { background: { color: '#111' }, textColor: '#fff' }
+  layout: { background: { color: '#000' }, textColor: '#fff' }
 })
 
-const series = chart.addLineSeries()
+const candleSeries = chart.addCandlestickSeries()
 
-const ws = new WebSocket("ws://" + location.host)
+const macdChart = LightweightCharts.createChart(document.getElementById('macd'), {
+  layout: { background: { color: '#000' }, textColor: '#fff' }
+})
+
+const macdLine = macdChart.addLineSeries({ color: 'blue' })
+const signalLine = macdChart.addLineSeries({ color: 'orange' })
+
+// 🔥 WAJIB WSS
+const ws = new WebSocket(`wss://${location.host}`)
+
+ws.onopen = () => {
+  console.log('WS FRONTEND CONNECTED')
+}
 
 ws.onmessage = (event) => {
-    const data = JSON.parse(event.data)
+  const data = JSON.parse(event.data)
 
-    series.update({
-        time: Math.floor(data.time / 1000),
-        value: data.price
-    })
+  if (data.m1) {
+    candleSeries.update(data.m1)
+  }
+
+  if (data.macd) {
+    const t = Math.floor(Date.now()/1000)
+
+    macdLine.update({ time: t, value: data.macd.macd })
+    signalLine.update({ time: t, value: data.macd.signal })
+  }
+}
+
+ws.onerror = (err) => {
+  console.log('WS ERROR', err)
 }
 </script>
 

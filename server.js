@@ -1,6 +1,10 @@
-const WebSocket = require('ws')
-const http = require('http')
 const express = require('express')
+const http = require('http')
+const WebSocket = require('ws')
+
+const m1 = require('./collector/m1')
+const m5 = require('./collector/m5')
+const macd = require('./indicators/macd')
 
 const app = express()
 app.use(express.static('public'))
@@ -8,59 +12,54 @@ app.use(express.static('public'))
 const server = http.createServer(app)
 const wss = new WebSocket.Server({ server })
 
-// Simpan client frontend
-let clients = []
-
-wss.on('connection', (ws) => {
-    clients.push(ws)
-
-    ws.on('close', () => {
-        clients = clients.filter(c => c !== ws)
-    })
-})
-
-// CONNECT BITGET
+// 🔥 BITGET WS
 const bitget = new WebSocket('wss://ws.bitget.com/mix/v1/stream')
 
 bitget.on('open', () => {
-    console.log('WS CONNECTED')
+  console.log('BITGET CONNECTED')
 
-    bitget.send(JSON.stringify({
-        op: "subscribe",
-        args: [{
-            instType: "mc",
-            channel: "ticker",
-            instId: "BTCUSDT"
-        }]
-    }))
+  bitget.send(JSON.stringify({
+    op: 'subscribe',
+    args: [{
+      instType: 'mc',
+      channel: 'ticker',
+      instId: 'BTCUSDT'
+    }]
+  }))
 })
 
-let lastPrice = null
-
 bitget.on('message', (msg) => {
-    try {
-        const data = JSON.parse(msg)
+  try {
+    const json = JSON.parse(msg)
 
-        if (data.data && data.data[0]) {
-            const price = parseFloat(data.data[0].last)
+    if (!json.data) return
 
-            // anti spam (hanya kirim jika berubah)
-            if (price !== lastPrice) {
-                lastPrice = price
+    const price = parseFloat(json.data[0].last)
+    if (!price) return
 
-                // kirim ke semua client frontend
-                clients.forEach(ws => {
-                    ws.send(JSON.stringify({
-                        price,
-                        time: Date.now()
-                    }))
-                })
-            }
-        }
+    const c1 = m1(price)
+    const c5 = m5(c1)
+    const macdData = macd(price)
 
-    } catch (e) {}
+    const payload = {
+      m1: c1,
+      m5: c5,
+      macd: macdData
+    }
+
+    console.log('DATA:', price)
+
+    wss.clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(payload))
+      }
+    })
+
+  } catch (e) {
+    console.log('ERROR PARSE', e.message)
+  }
 })
 
 server.listen(3000, () => {
-    console.log('🚀 SERVER RUNNING http://localhost:3000')
+  console.log('SERVER RUNNING http://localhost:3000')
 })
