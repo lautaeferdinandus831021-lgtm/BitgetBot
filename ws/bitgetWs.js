@@ -40,3 +40,7 @@ export function startWS(onCandle) {
     console.log("❌ WS ERROR:", err.message)
   })
 }
+
+// DEBUG RAW
+// console.log("RAW:", msg.toString())
+
