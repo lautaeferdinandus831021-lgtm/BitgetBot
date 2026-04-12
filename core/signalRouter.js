@@ -7,6 +7,8 @@ function analyze(price) {
 
     strategies.forEach((strat) => {
         try {
+            if (!strat.run) return;
+
             const result = strat.run(price);
 
             if (result) {
@@ -16,7 +18,7 @@ function analyze(price) {
                 });
             }
         } catch (err) {
-            console.log('Error strategy:', strat.name);
+            console.log('❌ Error strategy:', strat.name || 'unknown');
         }
     });
 

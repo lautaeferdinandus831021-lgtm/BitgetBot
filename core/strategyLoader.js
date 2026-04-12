@@ -11,13 +11,21 @@ function loadStrategies() {
         for (let file of files) {
             const fullPath = path.join(dir, file);
 
+            console.log('📂 Scanning:', fullPath);
+
             if (fs.statSync(fullPath).isDirectory()) {
                 scan(fullPath);
             } else if (file.endsWith('.js')) {
                 try {
                     const strat = require(fullPath);
-                    strategies.push(strat);
-                    console.log('✅ Loaded strategy:', file);
+
+                    if (strat && typeof strat.run === 'function') {
+                        strategies.push(strat);
+                        console.log('✅ Loaded strategy:', strat.name || file);
+                    } else {
+                        console.log('⚠️ Skip invalid:', file);
+                    }
+
                 } catch (err) {
                     console.log('❌ Failed load:', file);
                 }
