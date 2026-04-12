@@ -1,8 +1,8 @@
-const { analyze } = require('./logic/signalRouter');
+const { analyze } = require('./core/signalRouter');
+const { getPrice } = require('./market/data');
 
-// contoh test stream price
 setInterval(() => {
-    const price = Math.random() * 100000;
+    const price = getPrice();
     console.log("📈 PRICE:", price.toFixed(2));
     analyze(price);
 }, 2000);
