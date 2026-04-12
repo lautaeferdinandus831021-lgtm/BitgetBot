@@ -1,16 +1,8 @@
-const spot = require('../modules/exchange/spot/client');
-const futures = require('../modules/exchange/futures/client');
+const { execute } = require('../modules/exchange');
 
-function execute(order, mode) {
-    console.log('⚡ EXECUTE:', order, 'MODE:', mode);
-
-    if (mode === 'spot') {
-        spot.placeOrder(order);
-    } else if (mode === 'futures') {
-        futures.placeOrder(order);
-    } else {
-        console.log('❌ Unknown mode');
-    }
+async function run(order, mode) {
+    console.log('📤 SEND ORDER:', order);
+    await execute(order, mode);
 }
 
-module.exports = { execute };
+module.exports = { run };

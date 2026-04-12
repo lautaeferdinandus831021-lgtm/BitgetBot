@@ -1,16 +1,15 @@
 const axios = require('axios');
 
-async function getPrice() {
+async function getPrice(symbol = 'BTCUSDT') {
     try {
         const res = await axios.get(
-            'https://api.bitget.com/api/v2/spot/market/ticker?symbol=BTCUSDT'
+            `https://api.bitget.com/api/v2/spot/market/ticker?symbol=${symbol}`
         );
 
-        const price = parseFloat(res.data.data[0].lastPr);
-        return price;
+        return parseFloat(res.data.data[0].lastPr);
 
     } catch (err) {
-        console.log('❌ PRICE ERROR:', err.message);
+        console.log('❌ PRICE ERROR:', err.response?.data || err.message);
         return null;
     }
 }

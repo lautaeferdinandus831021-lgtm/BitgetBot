@@ -1,33 +1,29 @@
-const { analyze } = require('./core/signalRouter');
 const { getPrice } = require('./market/data');
-const { execute } = require('./core/executor');
-const { loadConfig } = require('./core/configLoader');
-const { calculateRisk } = require('./risk/riskManager');
+const { run } = require('./core/executor');
+const config = require('./config');
 
-const config = loadConfig();
+async function start() {
+    setInterval(async () => {
 
-setInterval(() => {
-    const price = getPrice();
+        const price = await getPrice(config.pair);
 
-    console.log('📊 PRICE:', price);
+        if (!price) return;
 
-    const signals = analyze(price);
+        console.log('📈 PRICE:', price);
 
-    if (!signals.length) return;
+        // dummy signal
+        const signal = price % 2 === 0 ? 'buy' : 'sell';
 
-    const signal = signals[0];
+        const order = {
+            pair: config.pair,
+            side: signal,
+            size: 0.001,
+            type: 'market'
+        };
 
-    console.log('📢 SIGNAL:', signal);
+        await run(order, config.mode);
 
-    const { sl, tp } = calculateRisk(price, config);
+    }, 3000);
+}
 
-    execute({
-        pair: config.pair,
-        side: signal.signal === 'BUY' ? 'buy' : 'sell',
-        size: config.size,
-        type: config.orderType,
-        stopLoss: sl,
-        takeProfit: tp
-    }, config.mode);
-
-}, 2000);
+start();

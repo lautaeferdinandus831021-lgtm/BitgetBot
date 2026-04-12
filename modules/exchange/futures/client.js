@@ -1,25 +1,31 @@
 const axios = require('axios');
-const { getHeaders } = require('../auth/apiManager');
+const { headers } = require('../auth/apiManager');
 
-const BASE = process.env.BASE_URL;
+const BASE_URL = 'https://api.bitget.com';
 
 async function placeOrder(order) {
-    const path = '/api/mix/v1/order/placeOrder';
-    const url = BASE + path;
-
-    const body = JSON.stringify({
-        symbol: order.pair,
-        marginCoin: 'USDT',
-        size: order.size,
-        side: order.side,
-        orderType: order.type
-    });
-
-    const headers = getHeaders('POST', path, body);
-
     try {
-        const res = await axios.post(url, JSON.parse(body), { headers });
-        console.log('🚀 FUTURES ORDER:', res.data);
+        const path = '/api/v2/mix/order/place-order';
+
+        const body = JSON.stringify({
+            symbol: order.pair,
+            productType: 'USDT-FUTURES',
+            marginMode: 'crossed',
+            marginCoin: 'USDT',
+            size: order.size.toString(),
+            side: order.side,
+            orderType: order.type,
+            force: 'gtc'
+        });
+
+        const res = await axios.post(
+            BASE_URL + path,
+            body,
+            { headers: headers('POST', path, body) }
+        );
+
+        console.log('🚀 FUTURES ORDER SUCCESS:', res.data);
+
     } catch (err) {
         console.log('❌ FUTURES ERROR:', err.response?.data || err.message);
     }
