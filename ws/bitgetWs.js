@@ -1,8 +1,11 @@
 import WebSocket from 'ws'
-import { MARKET } from '../config/market.js'
 
-export function startWS(onCandle) {
-  const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public')
+const URL = 'wss://ws.bitget.com/v2/ws/public'
+const SYMBOL = 'BTCUSDT'
+const INST = 'USDT-FUTURES'
+
+export function startWS(onM1, onM5) {
+  const ws = new WebSocket(URL)
 
   ws.on('open', () => {
     console.log("🟢 WS CONNECTED")
@@ -10,11 +13,8 @@ export function startWS(onCandle) {
     ws.send(JSON.stringify({
       op: "subscribe",
       args: [
-        {
-          instType: MARKET.instType,
-          channel: "candle1m",
-          instId: MARKET.symbol
-        }
+        { instType: INST, channel: "candle1m", instId: SYMBOL },
+        { instType: INST, channel: "candle5m", instId: SYMBOL }
       ]
     }))
   })
@@ -22,25 +22,16 @@ export function startWS(onCandle) {
   ws.on('message', (msg) => {
     try {
       const res = JSON.parse(msg.toString())
+      if (!res?.arg || !res?.data) return
 
-      if (!res?.data) return
-
+      const channel = res.arg.channel
       const candle = res.data[res.data.length - 1]
 
-      if (!candle) return
+      if (channel === "candle1m") onM1(candle)
+      if (channel === "candle5m") onM5(candle)
 
-      onCandle(candle)
-
-    } catch (err) {
-      console.log("❌ Parse error:", err.message)
+    } catch (e) {
+      console.log("❌ WS ERROR:", e.message)
     }
   })
-
-  ws.on('error', (err) => {
-    console.log("❌ WS ERROR:", err.message)
-  })
 }
-
-// DEBUG RAW
-// console.log("RAW:", msg.toString())
-

@@ -1,46 +1,34 @@
 import { startWS } from './ws/bitgetWs.js'
-import { build5m } from './utils/candleBuilder.js'
-import { CONFIG } from './config/env.js'
+import { pushM1, getM1 } from './collector/m1.js'
+import { pushM5, getM5 } from './collector/m5.js'
+import { dualTFStrategy } from './strategy/dualTF.js'
 
-import { singleTFStrategy } from './strategy/singleTF.js'
-import { dualTFStrategy, updateTrend } from './strategy/dualTF.js'
+console.log("🚀 BOT STARTED: DUAL TF (M1 + M5)")
 
-let history1m = []
-let history5m = []
+startWS(
 
-console.log("🚀 BOT STARTED MODE:", CONFIG.MODE)
+  // M1
+  (candle) => {
+    const price = parseFloat(candle[4])
+    if (!price) return
 
-startWS((candle) => {
-  const price = parseFloat(candle[4])
+    pushM1(price)
 
-  if (!price) return
+    console.log("📈 M1:", price)
+  },
 
-  history1m.push(price)
-  if (history1m.length > 100) history1m.shift()
+  // M5
+  (candle) => {
+    const price = parseFloat(candle[4])
+    if (!price) return
 
-  console.log("📈 1M:", price)
+    pushM5(price)
 
-  if (CONFIG.MODE === "SINGLE") {
-    const signal = singleTFStrategy(price)
-    console.log("SIGNAL:", signal)
+    console.log("🕯️ M5:", price)
+
+    const signal = dualTFStrategy(getM1(), getM5())
+
+    console.log("🔥 SIGNAL:", signal)
   }
 
-  if (CONFIG.MODE === "DUAL") {
-    updateTrend(price, history1m)
-
-    const candle5m = build5m(candle)
-
-    if (candle5m) {
-      const price5m = parseFloat(candle5m[4])
-
-      history5m.push(price5m)
-      if (history5m.length > 100) history5m.shift()
-
-      console.log("🕯️ 5M:", price5m)
-
-      const signal = dualTFStrategy(price5m, history5m)
-
-      console.log("🔥 SIGNAL:", signal)
-    }
-  }
-})
+)

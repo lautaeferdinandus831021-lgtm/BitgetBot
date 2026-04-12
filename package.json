@@ -2,9 +2,7 @@
   "name": "bitget-bot",
   "version": "1.0.0",
   "type": "module",
-  "main": "app.js",
   "dependencies": {
-    "ws": "^8.13.0",
-    "dotenv": "^16.4.5"
+    "ws": "^8.13.0"
   }
 }
