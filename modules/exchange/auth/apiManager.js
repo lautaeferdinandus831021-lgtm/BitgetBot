@@ -10,6 +10,7 @@ function sign(message, secret) {
 
 function getHeaders(method, path, body = '') {
     const timestamp = Date.now().toString();
+
     const message = timestamp + method + path + body;
 
     const signature = sign(message, process.env.API_SECRET);

@@ -1,54 +1,62 @@
-const {generateSMCSignal} = require('../strategy/smc');
-const {validateM1} = require('../strategy/m1Validator');
-const {getOrderFlow} = require('../strategy/orderFlow');
+const config = require('../config/userConfig');
+const loader = require('./loader');
+const { getPrice } = require('../modules/market/data');
+const { execute } = require('./executor');
 
-const {sendOrder, closePosition} = require('../ws/execution');
-const {openPosition, checkExit} = require('../risk/manager');
-const {updateTrailing} = require('../risk/trailing');
+async function run() {
+    const price = getPrice();
 
-let position = null;
-let lock = false;
+    console.log('📈 PRICE:', price.toFixed(2));
 
-function run(state){
+    // =====================
+    // INDICATOR
+    // =====================
+    let indicatorResults = {};
 
-  const {b5,b1,bids,asks,trades,price} = state;
+    config.indicators.forEach(ind => {
+        const fn = loader.indicator[ind];
+        if (fn) {
+            indicatorResults[ind] = fn(price);
+        }
+    });
 
-  if(!price || b5.length<10 || b1.length<5) return;
+    // =====================
+    // STRATEGY
+    // =====================
+    const strategies = loader.strategy[config.strategyType];
 
-  // EXIT
-  if(position){
-    position = updateTrailing(position, price);
+    let signal = null;
 
-    const exit = checkExit(price, position);
+    Object.values(strategies).forEach(strat => {
+        const res = strat.run(price, indicatorResults);
+        if (res && !signal) {
+            signal = res;
+        }
+    });
 
-    if(exit){
-      console.log('EXIT:', exit);
-      closePosition(position);
-      position = null;
-      lock = false;
-      return;
+    if (!signal) {
+        console.log('⏳ No signal');
+        return;
     }
-  }
 
-  if(position || lock) return;
+    console.log('🚀 SIGNAL:', signal);
 
-  // ENTRY
-  const trend = generateSMCSignal(b5);
-  if(!trend) return;
+    // =====================
+    // RISK MANAGEMENT
+    // =====================
+    const size = loader.risk.positionSize
+        ? loader.risk.positionSize(config.risk.size)
+        : config.risk.size;
 
-  if(!validateM1(b1, trend.type)) return;
-
-  const flow = getOrderFlow(bids,asks,trades,b1[b1.length-1]);
-  if(!flow || flow.type !== trend.type) return;
-
-  lock = true;
-
-  sendOrder(trend);
-  position = openPosition(trend.type, price);
-
-  setTimeout(()=>lock=false,2000);
-
-  console.log('ENTRY:', trend.type);
+    // =====================
+    // EXECUTION (INI YANG KAMU MINTA)
+    // =====================
+    await execute({
+        pair: config.pair,
+        side: signal.toLowerCase(),
+        size,
+        type: config.orderType
+    }, config.mode);
 }
 
 module.exports = { run };
