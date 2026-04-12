@@ -1,27 +1,26 @@
 const macd = require('../indicators/macd/macd')
+const m1 = require('../collector/m1')
+const m5 = require('../collector/m5')
 
-function runDualTF(m1, m5) {
-  if (m1.length < 10 || m5.length < 10) return
+function run() {
+  const m1Closes = m1.getCloses()
+  const m5Closes = m5.getCloses()
 
-  const m1Close = m1.map(c => c.close)
-  const m5Close = m5.map(c => c.close)
+  if (m1Closes.length < 10 || m5Closes.length < 10) return
 
-  const tf1 = macd(m1Close)
-  const tf5 = macd(m5Close)
+  const macdM1 = macd(m1Closes)
+  const macdM5 = macd(m5Closes)
 
-  if (!tf1 || !tf5) return
+  if (!macdM1 || !macdM5) return
 
-  // LOGIC:
-  // M1 = akurasi entry
-  // M5 = eksekusi
-
-  if (tf1.hist > 0 && tf5.hist > 0) {
-    console.log('🚀 BUY (M1 filter + M5 confirm)')
+  // 🔥 LOGIC ENTRY
+  if (macdM1.hist > 0 && macdM5.hist > 0) {
+    console.log('🟢 BUY SIGNAL')
   }
 
-  if (tf1.hist < 0 && tf5.hist < 0) {
-    console.log('🔻 SELL (M1 filter + M5 confirm)')
+  if (macdM1.hist < 0 && macdM5.hist < 0) {
+    console.log('🔴 SELL SIGNAL')
   }
 }
 
-module.exports = runDualTF
+module.exports = run

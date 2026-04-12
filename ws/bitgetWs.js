@@ -1,37 +1,41 @@
-import WebSocket from 'ws'
+const WebSocket = require('ws')
+const m1 = require('../collector/m1')
+const m5 = require('../collector/m5')
+const strategy = require('../strategy/dualTF')
 
-const URL = 'wss://ws.bitget.com/v2/ws/public'
-const SYMBOL = 'BTCUSDT'
-const INST = 'USDT-FUTURES'
+const ws = new WebSocket('wss://ws.bitget.com/v2/ws/public')
 
-export function startWS(onM1, onM5) {
-  const ws = new WebSocket(URL)
+ws.on('open', () => {
+  console.log('WS CONNECTED')
 
-  ws.on('open', () => {
-    console.log("🟢 WS CONNECTED")
+  ws.send(JSON.stringify({
+    op: 'subscribe',
+    args: [{
+      instType: 'USDT-FUTURES',
+      channel: 'candle1m',
+      instId: 'BTCUSDT'
+    }]
+  }))
+})
 
-    ws.send(JSON.stringify({
-      op: "subscribe",
-      args: [
-        { instType: INST, channel: "candle1m", instId: SYMBOL },
-        { instType: INST, channel: "candle5m", instId: SYMBOL }
-      ]
-    }))
-  })
+ws.on('message', (msg) => {
+  const data = JSON.parse(msg)
 
-  ws.on('message', (msg) => {
-    try {
-      const res = JSON.parse(msg.toString())
-      if (!res?.arg || !res?.data) return
+  if (data.action === 'update' && data.data) {
+    const c = data.data[0]
 
-      const channel = res.arg.channel
-      const candle = res.data[res.data.length - 1]
-
-      if (channel === "candle1m") onM1(candle)
-      if (channel === "candle5m") onM5(candle)
-
-    } catch (e) {
-      console.log("❌ WS ERROR:", e.message)
+    const candle = {
+      open: Number(c[1]),
+      high: Number(c[2]),
+      low: Number(c[3]),
+      close: Number(c[4])
     }
-  })
-}
+
+    m1.pushCandle(candle)
+    m5.pushFromM1(candle)
+
+    strategy()
+  }
+})
+
+module.exports = ws

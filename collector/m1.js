@@ -1,9 +1,19 @@
-const candles = []
+const m1 = []
 
-function pushM1(candle) {
-  candles.push(candle)
-  if (candles.length > 200) candles.shift()
-  return candles
+function pushCandle(candle) {
+  m1.push(candle)
+
+  if (m1.length > 100) {
+    m1.shift()
+  }
 }
 
-module.exports = { pushM1 }
+function getCloses() {
+  return m1.map(c => c.close)
+}
+
+module.exports = {
+  pushCandle,
+  getCloses,
+  data: m1
+}
