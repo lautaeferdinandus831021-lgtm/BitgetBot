@@ -1,82 +1,52 @@
-
-// ===== EMA =====
-function ema(data, period) {
-    const k = 2 / (period + 1);
-    let result = [data[0]];
-
-    for (let i = 1; i < data.length; i++) {
-        result.push(data[i] * k + result[i - 1] * (1 - k));
-    }
-
-    return result;
-}
-
-// ===== RSI =====
-function rsi(prices, period) {
-    let gains = 0;
-    let losses = 0;
-
-    for (let i = prices.length - period; i < prices.length - 1; i++) {
-        let diff = prices[i + 1] - prices[i];
-        if (diff >= 0) gains += diff;
-        else losses -= diff;
-    }
-
-    if (losses === 0) return 100;
-
-    const rs = gains / losses;
-    return 100 - (100 / (1 + rs));
-}
+const { EMA, RSI, MACD } = require('technicalindicators');
 
 module.exports = function(prices) {
+
     if (prices.length < 30) return null;
 
-    // ===== MACD FAST =====
-    const ema4 = ema(prices, 4);
-    const ema5 = ema(prices, 5);
+    // ===== MACD =====
+    const macd = MACD.calculate({
+        values: prices,
+        fastPeriod: 4,
+        slowPeriod: 5,
+        signalPeriod: 3,
+        SimpleMAOscillator: false,
+        SimpleMASignal: false
+    });
 
-    const macdLine = ema4.map((v, i) => v - ema5[i]);
-    const signalLine = ema(macdLine, 3);
+    if (macd.length < 2) return null;
 
-    const lastMACD = macdLine.at(-1);
-    const lastSignal = signalLine.at(-1);
-    const prevMACD = macdLine.at(-2);
-    const prevSignal = signalLine.at(-2);
+    const prev = macd[macd.length - 2];
+    const curr = macd[macd.length - 1];
 
-    // ===== RSI TRIPLE =====
-    const rsi4 = rsi(prices, 4);
-    const rsi5 = rsi(prices, 5);
-    const rsi25 = rsi(prices, 25); // garis netral
+    // ===== RSI =====
+    const rsi4 = RSI.calculate({ values: prices, period: 4 }).pop();
+    const rsi5 = RSI.calculate({ values: prices, period: 5 }).pop();
+    const rsi25 = RSI.calculate({ values: prices, period: 25 }).pop();
 
-    // ===== TREND EMA 5 =====
-    const emaTrend = ema(prices, 5);
-    const price = prices.at(-1);
-    const trendUp = price > emaTrend.at(-1);
-    const trendDown = price < emaTrend.at(-1);
+    // ===== EMA TREND =====
+    const ema5 = EMA.calculate({ values: prices, period: 5 });
+    const trendUp = ema5[ema5.length - 1] > ema5[ema5.length - 2];
 
-    // ===== FILTER ZONE (hindari sideways) =====
-    if (Math.abs(lastMACD - lastSignal) < 0.05) return null;
-
-    // ===== BUY =====
+    // ===== SIGNAL =====
     if (
-        prevMACD < prevSignal &&
-        lastMACD > lastSignal &&
-        rsi4 > rsi5 &&
+        prev.MACD < prev.signal &&
+        curr.MACD > curr.signal &&
+        rsi4 > rsi25 &&
         rsi5 > rsi25 &&
         trendUp
     ) {
-        return 'BUY';
+        return "BUY";
     }
 
-    // ===== SELL =====
     if (
-        prevMACD > prevSignal &&
-        lastMACD < lastSignal &&
-        rsi4 < rsi5 &&
+        prev.MACD > prev.signal &&
+        curr.MACD < curr.signal &&
+        rsi4 < rsi25 &&
         rsi5 < rsi25 &&
-        trendDown
+        !trendUp
     ) {
-        return 'SELL';
+        return "SELL";
     }
 
     return null;
