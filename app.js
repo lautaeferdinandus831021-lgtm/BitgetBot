@@ -31,17 +31,20 @@ function connect() {
 
       const price = parseFloat(ticker.lastPr);
 
+      // ✅ tampilkan realtime
+      console.log('📈 PRICE:', price);
+
       const result = buildCandle(price);
 
-      // hanya jalan saat candle CLOSE
+      // ✅ hanya saat candle close
       if (result.closed) {
         const candles = getCandles();
 
         if (candles.length < 10) return;
 
-        const signal = analyze(candles);
-
         console.log('🕯️ NEW CANDLE:', candles[candles.length - 1]);
+
+        const signal = analyze(candles);
 
         if (signal === 'buy') {
           console.log('🚀 BUY SIGNAL (VALID)');
